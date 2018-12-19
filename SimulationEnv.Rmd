@@ -1,0 +1,2975 @@
+---
+title: "Simulation Environment"
+author: "Nikhil Smith, Cameron Mitchell"
+date: "11/25/2018"
+output: html_document
+---
+
+```{r}
+##This file contains all of the code used for requesting, wrangling, cleaning, and analyzing our data in our research of Technical Indicators. File paths, API keys, etc. included were specific to both Nik and Cameron's computers and will have to be altered to reproduce the code.
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(urltools)
+library(jsonlite)
+library(ggplot2)
+```
+
+```{r}
+alpha_key <- "H770WZJNWTGH1JWF"
+```
+
+Now, we begin by creating our portfolio of stocks. This process is key. In order to help streamline the process, we will be using three different strategies to create and test a portfolio. 
+
+```{r}
+#A function to retrive prices.
+AlphaVantage_PriceGetter <- function(Ticker) {
+  Sys.sleep(2)
+  url <- "https://www.alphavantage.co/query?"
+  url <- param_set(url, "apikey", url_encode(alpha_key))
+  url <- param_set(url, "datatype", url_encode("csv"))
+  url <- param_set(url, "function", url_encode("TIME_SERIES_DAILY"))
+  url <- param_set(url, "symbol", url_encode(Ticker))
+  url <- param_set(url, "outputsize", url_encode("full"))
+  return(url)
+}
+```
+
+# Fidelity Portfolio
+
+```{r, eval = FALSE}
+#Reading each price of the stocks from the Fidelity portfolio into a .csv.
+CMCSA_Price <- read_csv(AlphaVantage_PriceGetter("CMCSA"))
+CVX_Price <- read_csv(AlphaVantage_PriceGetter("CVX"))
+GE_Price <- read_csv(AlphaVantage_PriceGetter("GE"))
+JNJ_Price <- read_csv(AlphaVantage_PriceGetter("JNJ"))
+JPM_Price <- read_csv(AlphaVantage_PriceGetter("JPM"))
+MRK_Price <- read_csv(AlphaVantage_PriceGetter("MRK"))
+PAYX_Price <- read_csv(AlphaVantage_PriceGetter("PAYX"))
+PFE_Price <- read_csv(AlphaVantage_PriceGetter("PFE"))
+RDS.A_Price <- read_csv(AlphaVantage_PriceGetter("RDS-A"))
+WFC_Price <- read_csv(AlphaVantage_PriceGetter("WFC"))
+```
+
+```{r, eval = FALSE}
+#Cleaning up the data.
+CMCSA_Price <- rename(CMCSA_Price, open_CMCSA = open, high_CMCSA = high, low_CMCSA = low, close_CMCSA = close, volume_CMCSA = volume)
+PAYX_Price <- rename(PAYX_Price, open_PAYX = open, high_PAYX = high, low_PAYX = low, close_PAYX = close, volume_PAYX = volume)
+GE_Price <- rename(GE_Price, open_GE = open, high_GE = high, low_GE = low, close_GE = close, volume_GE = volume)
+PFE_Price <- rename(PFE_Price, open_PFE = open, high_PFE = high, low_PFE = low, close_PFE = close, volume_PFE = volume)
+MRK_Price <- rename(MRK_Price, open_MRK = open, high_MRK = high, low_MRK = low, close_MRK = close, volume_MRK = volume)
+JNJ_Price <- rename(JNJ_Price, open_JNJ = open, high_JNJ = high, low_JNJ = low, close_JNJ = close, volume_JNJ = volume)
+JPM_Price <- rename(JPM_Price, open_JPM = open, high_JPM = high, low_JPM = low, close_JPM = close, volume_JPM = volume)
+WFC_Price <- rename(WFC_Price, open_WFC = open, high_WFC = high, low_WFC = low, close_WFC = close, volume_WFC = volume)
+RDS.A_Price <- rename(RDS.A_Price, open_RDS.A = open, high_RDS.A = high, low_RDS.A = low, close_RDS.A = close, volume_RDS.A = volume)
+CVX_Price <- rename(CVX_Price, open_CVX = open, high_CVX = high, low_CVX = low, close_CVX = close, volume_CVX = volume)
+
+CMCSA_Price$timestamp <- as.Date(CMCSA_Price$timestamp)
+PAYX_Price$timestamp <- as.Date(PAYX_Price$timestamp)
+GE_Price$timestamp <- as.Date(GE_Price$timestamp)
+PFE_Price$timestamp <- as.Date(PFE_Price$timestamp)
+MRK_Price$timestamp <- as.Date(MRK_Price$timestamp)
+JNJ_Price$timestamp <- as.Date(JNJ_Price$timestamp)
+JPM_Price$timestamp <- as.Date(JPM_Price$timestamp)
+WFC_Price$timestamp <- as.Date(WFC_Price$timestamp)
+RDS.A_Price$timestamp <- as.Date(RDS.A_Price$timestamp)
+CVX_Price$timestamp <- as.Date(CVX_Price$timestamp)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(CMCSA_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/CMCSA_Price.csv")
+write_csv(PAYX_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/PAYX_Price.csv")
+write_csv(GE_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/GE_Price.csv")
+write_csv(PFE_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/PFE_Price.csv")
+write_csv(MRK_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/MRK_Price.csv")
+write_csv(JNJ_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/JNJ_Price.csv")
+write_csv(JPM_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/JPM_Price.csv")
+write_csv(WFC_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/WFC_Price.csv")
+write_csv(RDS.A_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/RDS.A_Price.csv")
+write_csv(CVX_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/CVX_Price.csv")
+```
+
+```{r}
+Price_ALL_Fidelity <- CMCSA_Price %>%
+  inner_join(PAYX_Price) %>%
+  inner_join(GE_Price) %>%
+  inner_join(PFE_Price) %>%
+  inner_join(MRK_Price) %>% 
+  inner_join(JNJ_Price) %>%
+  inner_join(JPM_Price) %>%
+  inner_join(WFC_Price) %>%
+  inner_join(RDS.A_Price) %>%
+  inner_join(CVX_Price)
+```
+
+```{r}
+Price_ALL_Fidelity <- Price_ALL_Fidelity %>%
+  filter(timestamp > "2013-11-25") %>%
+  filter(timestamp < "2018-11-27")
+
+write_csv(Price_ALL_Fidelity, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/Price_ALL_Fidelity.csv")
+```
+
+```{r}
+#A function to retrieve STOCH.
+AlphaVantage_STOCHGetter <- function(Ticker) {
+  Sys.sleep(2)
+  url <- "https://www.alphavantage.co/query?"
+  url <- param_set(url, "apikey", url_encode(alpha_key))
+  url <- param_set(url, "datatype", url_encode("csv"))
+  url <- param_set(url, "function", url_encode("STOCH"))
+  url <- param_set(url, "symbol", url_encode(Ticker))
+  url <- param_set(url, "interval", url_encode("daily"))
+  return(url)
+}
+```
+
+```{r, eval = FALSE}
+#Reading each STOCH of the stocks from the Fidelity portfolio into a .csv.
+CMCSA_STOCH <- read_csv(AlphaVantage_STOCHGetter("CMCSA"))
+CVX_STOCH <- read_csv(AlphaVantage_STOCHGetter("CVX"))
+GE_STOCH <- read_csv(AlphaVantage_STOCHGetter("GE"))
+JNJ_STOCH <- read_csv(AlphaVantage_STOCHGetter("JNJ"))
+JPM_STOCH <- read_csv(AlphaVantage_STOCHGetter("JPM"))
+MRK_STOCH <- read_csv(AlphaVantage_STOCHGetter("MRK"))
+PAYX_STOCH <- read_csv(AlphaVantage_STOCHGetter("PAYX"))
+PFE_STOCH <- read_csv(AlphaVantage_STOCHGetter("PFE"))
+RDS.A_STOCH <- read_csv(AlphaVantage_STOCHGetter("RDS-A"))
+WFC_STOCH <- read_csv(AlphaVantage_STOCHGetter("WFC"))
+```
+
+```{r}
+#Cleaning the data.
+CMCSA_STOCH <- rename(CMCSA_STOCH, SlowD_CMCSA = SlowD, SlowK_CMCSA = SlowK)
+PAYX_STOCH <- rename(PAYX_STOCH, SlowD_PAYX = SlowD, SlowK_PAYX = SlowK)
+GE_STOCH <- rename(GE_STOCH, SlowD_GE = SlowD, SlowK_GE = SlowK)
+PFE_STOCH <- rename(PFE_STOCH, SlowD_PFE = SlowD, SlowK_PFE = SlowK)
+MRK_STOCH <- rename(MRK_STOCH, SlowD_MRK = SlowD, SlowK_MRK = SlowK)
+JNJ_STOCH <- rename(JNJ_STOCH, SlowD_JNJ = SlowD, SlowK_JNJ = SlowK)
+JPM_STOCH <- rename(JPM_STOCH, SlowD_JPM = SlowD, SlowK_JPM = SlowK)
+WFC_STOCH <- rename(WFC_STOCH, SlowD_WFC = SlowD, SlowK_WFC = SlowK)
+RDS.A_STOCH <- rename(RDS.A_STOCH, SlowD_RDS.A = SlowD, SlowK_RDS.A = SlowK)
+CVX_STOCH <- rename(CVX_STOCH, SlowD_CVX = SlowD, SlowK_CVX = SlowK)
+
+CMCSA_STOCH$time <- substr(CMCSA_STOCH$time, start = 0, stop = 11)
+PAYX_STOCH$time <- substr(PAYX_STOCH$time, start = 0, stop = 11)
+GE_STOCH$time <- substr(GE_STOCH$time, start = 0, stop = 11)
+PFE_STOCH$time <- substr(PFE_STOCH$time, start = 0, stop = 11)
+MRK_STOCH$time <- substr(MRK_STOCH$time, start = 0, stop = 11)
+JNJ_STOCH$time <- substr(JNJ_STOCH$time, start = 0, stop = 11)
+JPM_STOCH$time <- substr(JPM_STOCH$time, start = 0, stop = 11)
+WFC_STOCH$time <- substr(WFC_STOCH$time, start = 0, stop = 11)
+RDS.A_STOCH$time <- substr(RDS.A_STOCH$time, start = 0, stop = 11)
+CVX_STOCH$time <- substr(CVX_STOCH$time, start = 0, stop = 11)
+
+CMCSA_STOCH$time <- as.Date(CMCSA_STOCH$time)
+PAYX_STOCH$time <- as.Date(PAYX_STOCH$time)
+GE_STOCH$time <- as.Date(GE_STOCH$time)
+PFE_STOCH$time <- as.Date(PFE_STOCH$time)
+MRK_STOCH$time <- as.Date(MRK_STOCH$time)
+JNJ_STOCH$time <- as.Date(JNJ_STOCH$time)
+JPM_STOCH$time <- as.Date(JPM_STOCH$time)
+WFC_STOCH$time <- as.Date(WFC_STOCH$time)
+RDS.A_STOCH$time <- as.Date(RDS.A_STOCH$time)
+CVX_STOCH$time <- as.Date(CVX_STOCH$time)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(CMCSA_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/CMCSA_STOCH.csv")
+write_csv(PAYX_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/PAYX_STOCH.csv")
+write_csv(GE_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/GE_STOCH.csv")
+write_csv(PFE_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/PFE_STOCH.csv")
+write_csv(MRK_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/MRK_STOCH.csv")
+write_csv(JNJ_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/JNJ_STOCH.csv")
+write_csv(JPM_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/JPM_STOCH.csv")
+write_csv(WFC_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/WFC_STOCH.csv")
+write_csv(RDS.A_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/RDS.A_STOCH.csv")
+write_csv(CVX_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/CVX_STOCH.csv")
+```
+
+```{r}
+STOCH_ALL_Fidelity <- CMCSA_STOCH %>%
+  inner_join(PAYX_STOCH) %>%
+  inner_join(GE_STOCH) %>%
+  inner_join(PFE_STOCH) %>%
+  inner_join(MRK_STOCH) %>% 
+  inner_join(JNJ_STOCH) %>%
+  inner_join(JPM_STOCH) %>%
+  inner_join(WFC_STOCH) %>%
+  inner_join(RDS.A_STOCH) %>%
+  inner_join(CVX_STOCH)
+```
+
+```{r}
+STOCH_ALL_Fidelity <- STOCH_ALL_Fidelity %>%
+  filter(time > "2013-11-25") %>%
+  filter(time < "2018-11-27")
+
+write_csv(STOCH_ALL_Fidelity, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/STOCH_ALL_Fidelity.csv")
+```
+
+```{r}
+#A function to retrieve RSI.
+AlphaVantage_RSIGetter <- function(Ticker, Time_Period, Series_Type) {
+  Sys.sleep(2)
+  url <- "https://www.alphavantage.co/query?"
+  url <- param_set(url, "apikey", url_encode(alpha_key))
+  url <- param_set(url, "datatype", url_encode("csv"))
+  url <- param_set(url, "function", url_encode("RSI"))
+  url <- param_set(url, "symbol", url_encode(Ticker))
+  url <- param_set(url, "interval", url_encode("daily"))
+  url <- param_set(url, "time_period", url_encode(Time_Period))
+  url <- param_set(url, "series_type", url_encode(Series_Type))
+  return(url)
+}
+```
+
+```{r}
+#Reading each RSI of the stocks from the Fidelity portfolio into a .csv.
+CMCSA_RSI <- read_csv(AlphaVantage_RSIGetter("CMCSA", "20", "close"))
+CVX_RSI <- read_csv(AlphaVantage_RSIGetter("CVX", "20", "close"))
+GE_RSI <- read_csv(AlphaVantage_RSIGetter("GE", "20", "close"))
+JNJ_RSI <- read_csv(AlphaVantage_RSIGetter("JNJ", "20", "close"))
+JPM_RSI <- read_csv(AlphaVantage_RSIGetter("JPM", "20", "close"))
+MRK_RSI <- read_csv(AlphaVantage_RSIGetter("MRK", "20", "close"))
+PAYX_RSI <- read_csv(AlphaVantage_RSIGetter("PAYX", "20", "close"))
+PFE_RSI <- read_csv(AlphaVantage_RSIGetter("PFE", "20", "close"))
+RDS.A_RSI <- read_csv(AlphaVantage_RSIGetter("RDS-A", "20", "close"))
+WFC_RSI <- read_csv(AlphaVantage_RSIGetter("WFC", "20", "close"))
+```
+
+```{r}
+#Cleaning the data.
+CMCSA_RSI <- rename(CMCSA_RSI, RSI_CMCSA = RSI)
+PAYX_RSI <- rename(PAYX_RSI, RSI_PAYX = RSI)
+GE_RSI <- rename(GE_RSI, RSI_GE = RSI)
+PFE_RSI <- rename(PFE_RSI, RSI_PFE = RSI)
+MRK_RSI <- rename(MRK_RSI, RSI_MRK = RSI)
+JNJ_RSI <- rename(JNJ_RSI, RSI_JNJ = RSI)
+JPM_RSI <- rename(JPM_RSI, RSI_JPM = RSI)
+WFC_RSI <- rename(WFC_RSI, RSI_WFC = RSI)
+RDS.A_RSI <- rename(RDS.A_RSI, RSI_RDS.A = RSI)
+CVX_RSI <- rename(CVX_RSI, RSI_CVX = RSI)
+
+CMCSA_RSI$time <- substr(CMCSA_RSI$time, start = 0, stop = 11)
+PAYX_RSI$time <- substr(PAYX_RSI$time, start = 0, stop = 11)
+GE_RSI$time <- substr(GE_RSI$time, start = 0, stop = 11)
+PFE_RSI$time <- substr(PFE_RSI$time, start = 0, stop = 11)
+MRK_RSI$time <- substr(MRK_RSI$time, start = 0, stop = 11)
+JNJ_RSI$time <- substr(JNJ_RSI$time, start = 0, stop = 11)
+JPM_RSI$time <- substr(JPM_RSI$time, start = 0, stop = 11)
+WFC_RSI$time <- substr(WFC_RSI$time, start = 0, stop = 11)
+RDS.A_RSI$time <- substr(RDS.A_RSI$time, start = 0, stop = 11)
+CVX_RSI$time <- substr(CVX_RSI$time, start = 0, stop = 11)
+
+CMCSA_RSI$time <- as.Date(CMCSA_RSI$time)
+PAYX_RSI$time <- as.Date(PAYX_RSI$time)
+GE_RSI$time <- as.Date(GE_RSI$time)
+PFE_RSI$time <- as.Date(PFE_RSI$time)
+MRK_RSI$time <- as.Date(MRK_RSI$time)
+JNJ_RSI$time <- as.Date(JNJ_RSI$time)
+JPM_RSI$time <- as.Date(JPM_RSI$time)
+WFC_RSI$time <- as.Date(WFC_RSI$time)
+RDS.A_RSI$time <- as.Date(RDS.A_RSI$time)
+CVX_RSI$time <- as.Date(CVX_RSI$time)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(CMCSA_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/CMCSA_RSI.csv")
+write_csv(PAYX_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/PAYX_RSI.csv")
+write_csv(GE_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/GE_RSI.csv")
+write_csv(PFE_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/PFE_RSI.csv")
+write_csv(MRK_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/MRK_RSI.csv")
+write_csv(JNJ_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/JNJ_RSI.csv")
+write_csv(JPM_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/JPM_RSI.csv")
+write_csv(WFC_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/WFC_RSI.csv")
+write_csv(RDS.A_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/RDS.A_RSI.csv")
+write_csv(CVX_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/CVX_RSI.csv")
+```
+
+```{r}
+RSI_ALL_Fidelity <- CMCSA_RSI %>%
+  inner_join(PAYX_RSI) %>%
+  inner_join(GE_RSI) %>%
+  inner_join(PFE_RSI) %>%
+  inner_join(MRK_RSI) %>% 
+  inner_join(JNJ_RSI) %>%
+  inner_join(JPM_RSI) %>%
+  inner_join(WFC_RSI) %>%
+  inner_join(RDS.A_RSI) %>%
+  inner_join(CVX_RSI)
+```
+
+```{r}
+RSI_ALL_Fidelity <- RSI_ALL_Fidelity %>%
+  filter(time > "2013-11-25") %>%
+  filter(time < "2018-11-27")
+
+write_csv(RSI_ALL_Fidelity, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/RSI_ALL_Fidelity.csv")
+```
+
+```{r}
+colnames(Price_ALL_Fidelity)[1] <- "time"
+
+#Alphabetize the data sets.
+ClosePrice_ALL_Fidelity <- Price_ALL_Fidelity %>% 
+  select(time, close_CMCSA, close_CVX, close_GE, close_JPM, close_JNJ, close_MRK, close_PAYX, close_PFE, close_RDS.A, close_WFC)
+
+RSI_ALL_Fidelity <- RSI_ALL_Fidelity %>% 
+  select(time, RSI_CMCSA, RSI_CVX, RSI_GE, RSI_JPM, RSI_JNJ, RSI_MRK, RSI_PAYX, RSI_PFE, RSI_RDS.A, RSI_WFC)
+
+STOCH_ALL_Fidelity <- STOCH_ALL_Fidelity %>% 
+  select(time, SlowD_CMCSA, SlowK_CMCSA, SlowD_CVX, SlowK_CVX, SlowD_GE, SlowK_GE, SlowD_JPM, SlowK_JPM, SlowD_JNJ, SlowK_JNJ, SlowD_MRK, SlowK_MRK, SlowD_PAYX, SlowK_PAYX, SlowD_PFE, SlowK_PFE, SlowD_RDS.A, SlowK_RDS.A, SlowD_WFC, SlowK_WFC)
+
+Master_Table_Fidelity <- ClosePrice_ALL_Fidelity %>% 
+  left_join(RSI_ALL_Fidelity) %>% 
+  left_join(STOCH_ALL_Fidelity)
+
+write_csv(Master_Table_Fidelity, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Master_Table_Fidelity.csv")
+```
+
+# Article Portfolio
+
+```{r, eval = FALSE}
+#Reading each price of the stocks from the Article portfolio into a .csv.
+CSCO_Price <- read_csv(AlphaVantage_PriceGetter("CSCO"))
+CVX_Price <- read_csv(AlphaVantage_PriceGetter("CVX"))
+GE_Price <- read_csv(AlphaVantage_PriceGetter("GE"))
+IBM_Price <- read_csv(AlphaVantage_PriceGetter("IBM"))
+MMM_Price <- read_csv(AlphaVantage_PriceGetter("MMM"))
+MSFT_Price <- read_csv(AlphaVantage_PriceGetter("MSFT"))
+PFE_Price <- read_csv(AlphaVantage_PriceGetter("PFE"))
+TRV_Price <- read_csv(AlphaVantage_PriceGetter("TRV"))
+UNH_Price <- read_csv(AlphaVantage_PriceGetter("UNH"))
+UTX_Price <- read_csv(AlphaVantage_PriceGetter("UTX"))
+```
+
+```{r, eval = FALSE}
+#Cleaning up the data.
+CSCO_Price <- rename(CSCO_Price, open_CSCO = open, high_CSCO = high, low_CSCO = low, close_CSCO = close, volume_CSCO = volume)
+CVX_Price <- rename(CVX_Price, open_CVX = open, high_CVX = high, low_CVX = low, close_CVX = close, volume_CVX = volume)
+PFE_Price <- rename(PFE_Price, open_PFE = open, high_PFE = high, low_PFE = low, close_PFE = close, volume_PFE = volume)
+GE_Price <- rename(GE_Price, open_GE = open, high_GE = high, low_GE = low, close_GE = close, volume_GE = volume)
+TRV_Price <- rename(TRV_Price, open_TRV = open, high_TRV = high, low_TRV = low, close_TRV = close, volume_TRV = volume)
+MSFT_Price <- rename(MSFT_Price, open_MSFT = open, high_MSFT = high, low_MSFT = low, close_MSFT = close, volume_MSFT = volume)
+IBM_Price <- rename(IBM_Price, open_IBM = open, high_IBM = high, low_IBM = low, close_IBM = close, volume_IBM = volume)
+MMM_Price <- rename(MMM_Price, open_MMM = open, high_MMM = high, low_MMM = low, close_MMM = close, volume_MMM = volume)
+UTX_Price <- rename(UTX_Price, open_UTX = open, high_UTX = high, low_UTX = low, close_UTX = close, volume_UTX = volume)
+UNH_Price <- rename(UNH_Price, open_UNH = open, high_UNH = high, low_UNH = low, close_UNH = close, volume_UNH = volume)
+
+CSCO_Price$timestamp <- as.Date(CSCO_Price$timestamp)
+PFE_Price$timestamp <- as.Date(PFE_Price$timestamp)
+GE_Price$timestamp <- as.Date(GE_Price$timestamp)
+TRV_Price$timestamp <- as.Date(TRV_Price$timestamp)
+MSFT_Price$timestamp <- as.Date(MSFT_Price$timestamp)
+IBM_Price$timestamp <- as.Date(IBM_Price$timestamp)
+MMM_Price$timestamp <- as.Date(MMM_Price$timestamp)
+UTX_Price$timestamp <- as.Date(UTX_Price$timestamp)
+UNH_Price$timestamp <- as.Date(UNH_Price$timestamp)
+CVX_Price$timestamp <- as.Date(CVX_Price$timestamp)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(CSCO_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/CSCO_Price.csv")
+write_csv(PFE_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/PFE_Price.csv")
+write_csv(GE_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/GE_Price.csv")
+write_csv(TRV_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/TRV_Price.csv")
+write_csv(MSFT_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/MSFT_Price.csv")
+write_csv(IBM_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/IBM_Price.csv")
+write_csv(MMM_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/MMM_Price.csv")
+write_csv(UTX_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/UTX_Price.csv")
+write_csv(UNH_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/UNH_Price.csv")
+write_csv(CVX_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/CVX_Price.csv")
+```
+
+```{r}
+Price_ALL_Article <- CSCO_Price %>%
+  inner_join(PFE_Price) %>%
+  inner_join(GE_Price) %>%
+  inner_join(TRV_Price) %>%
+  inner_join(MSFT_Price) %>% 
+  inner_join(IBM_Price) %>%
+  inner_join(MMM_Price) %>%
+  inner_join(UTX_Price) %>%
+  inner_join(UNH_Price) %>%
+  inner_join(CVX_Price)
+```
+
+```{r}
+Price_ALL_Article <- Price_ALL_Article %>%
+  filter(timestamp > "2013-11-25") %>%
+  filter(timestamp < "2018-11-27")
+
+write_csv(Price_ALL_Article, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/Price_All_Article.csv")
+```
+
+```{r, eval = FALSE}
+#Reading each STOCH of the stocks from the Article portfolio into a .csv.
+CSCO_STOCH <- read_csv(AlphaVantage_STOCHGetter("CSCO"))
+CVX_STOCH <- read_csv(AlphaVantage_STOCHGetter("CVX"))
+GE_STOCH <- read_csv(AlphaVantage_STOCHGetter("GE"))
+IBM_STOCH <- read_csv(AlphaVantage_STOCHGetter("IBM"))
+MMM_STOCH <- read_csv(AlphaVantage_STOCHGetter("MMM"))
+MSFT_STOCH <- read_csv(AlphaVantage_STOCHGetter("MSFT"))
+PFE_STOCH <- read_csv(AlphaVantage_STOCHGetter("PFE"))
+TRV_STOCH <- read_csv(AlphaVantage_STOCHGetter("TRV"))
+UNH_STOCH <- read_csv(AlphaVantage_STOCHGetter("UNH"))
+UTX_STOCH <- read_csv(AlphaVantage_STOCHGetter("UTX"))
+```
+
+```{r eval=FALSE}
+#Cleaning the data.
+CSCO_STOCH <- rename(CSCO_STOCH, SlowD_CSCO = SlowD, SlowK_CSCO = SlowK)
+PFE_STOCH <- rename(PFE_STOCH, SlowD_PFE = SlowD, SlowK_PFE = SlowK)
+GE_STOCH <- rename(GE_STOCH, SlowD_GE = SlowD, SlowK_GE = SlowK)
+TRV_STOCH <- rename(TRV_STOCH, SlowD_TRV = SlowD, SlowK_TRV = SlowK)
+MSFT_STOCH <- rename(MSFT_STOCH, SlowD_MSFT = SlowD, SlowK_MSFT = SlowK)
+IBM_STOCH <- rename(IBM_STOCH, SlowD_IBM = SlowD, SlowK_IBM = SlowK)
+MMM_STOCH <- rename(MMM_STOCH, SlowD_MMM = SlowD, SlowK_MMM = SlowK)
+UTX_STOCH <- rename(UTX_STOCH, SlowD_UTX = SlowD, SlowK_UTX = SlowK)
+UNH_STOCH <- rename(UNH_STOCH, SlowD_UNH = SlowD, SlowK_UNH = SlowK)
+CVX_STOCH <- rename(CVX_STOCH, SlowD_CVX = SlowD, SlowK_CVX = SlowK)
+
+CSCO_STOCH$time <- substr(CSCO_STOCH$time, start = 0, stop = 11)
+PFE_STOCH$time <- substr(PFE_STOCH$time, start = 0, stop = 11)
+GE_STOCH$time <- substr(GE_STOCH$time, start = 0, stop = 11)
+TRV_STOCH$time <- substr(TRV_STOCH$time, start = 0, stop = 11)
+MSFT_STOCH$time <- substr(MSFT_STOCH$time, start = 0, stop = 11)
+IBM_STOCH$time <- substr(IBM_STOCH$time, start = 0, stop = 11)
+MMM_STOCH$time <- substr(MMM_STOCH$time, start = 0, stop = 11)
+UTX_STOCH$time <- substr(UTX_STOCH$time, start = 0, stop = 11)
+UNH_STOCH$time <- substr(UNH_STOCH$time, start = 0, stop = 11)
+CVX_STOCH$time <- substr(CVX_STOCH$time, start = 0, stop = 11)
+
+CSCO_STOCH$time <- as.Date(CSCO_STOCH$time)
+PFE_STOCH$time <- as.Date(PFE_STOCH$time)
+GE_STOCH$time <- as.Date(GE_STOCH$time)
+TRV_STOCH$time <- as.Date(TRV_STOCH$time)
+MSFT_STOCH$time <- as.Date(MSFT_STOCH$time)
+IBM_STOCH$time <- as.Date(IBM_STOCH$time)
+MMM_STOCH$time <- as.Date(MMM_STOCH$time)
+UTX_STOCH$time <- as.Date(UTX_STOCH$time)
+UNH_STOCH$time <- as.Date(UNH_STOCH$time)
+CVX_STOCH$time <- as.Date(CVX_STOCH$time)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(CSCO_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/CSCO_STOCH.csv")
+write_csv(PFE_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/PFE_STOCH.csv")
+write_csv(GE_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/GE_STOCH.csv")
+write_csv(TRV_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/TRV_STOCH.csv")
+write_csv(MSFT_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/MSFT_STOCH.csv")
+write_csv(IBM_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/IBM_STOCH.csv")
+write_csv(MMM_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/MMM_STOCH.csv")
+write_csv(UTX_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/UTX_STOCH.csv")
+write_csv(UNH_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/UNH_STOCH.csv")
+write_csv(CVX_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/CTX_STOCH.csv")
+```
+
+```{r}
+STOCH_ALL_Article <- CSCO_STOCH %>%
+  inner_join(PFE_STOCH) %>%
+  inner_join(GE_STOCH) %>%
+  inner_join(TRV_STOCH) %>%
+  inner_join(MSFT_STOCH) %>% 
+  inner_join(IBM_STOCH) %>%
+  inner_join(MMM_STOCH) %>%
+  inner_join(UTX_STOCH) %>%
+  inner_join(UNH_STOCH) %>%
+  inner_join(CVX_STOCH)
+```
+
+```{r}
+STOCH_ALL_Article <- STOCH_ALL_Article %>%
+  filter(time > "2013-11-25") %>%
+  filter(time < "2018-11-27")
+
+write_csv(STOCH_ALL_Article, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/STOCH_ALL_Article.csv")
+```
+
+```{r eval=FALSE}
+#Reading each RSI of the stocks from the Article portfolio into a .csv
+CSCO_RSI <- read_csv(AlphaVantage_RSIGetter("CSCO", "20", "close"))
+CVX_RSI <- read_csv(AlphaVantage_RSIGetter("CVX", "20", "close"))
+GE_RSI <- read_csv(AlphaVantage_RSIGetter("GE", "20", "close"))
+IBM_RSI <- read_csv(AlphaVantage_RSIGetter("IBM", "20", "close"))
+MMM_RSI <- read_csv(AlphaVantage_RSIGetter("MMM", "20", "close"))
+MSFT_RSI <- read_csv(AlphaVantage_RSIGetter("MSFT", "20", "close"))
+PFE_RSI <- read_csv(AlphaVantage_RSIGetter("PFE", "20", "close"))
+TRV_RSI <- read_csv(AlphaVantage_RSIGetter("TRV", "20", "close"))
+UNH_RSI <- read_csv(AlphaVantage_RSIGetter("RDS-A", "20", "close"))
+UTX_RSI <- read_csv(AlphaVantage_RSIGetter("UTX", "20", "close"))
+```
+
+```{r eval=FALSE}
+#Cleaning the data.
+CSCO_RSI <- rename(CSCO_RSI, RSI_CSCO = RSI)
+PFE_RSI <- rename(PFE_RSI, RSI_PFE = RSI)
+GE_RSI <- rename(GE_RSI, RSI_GE = RSI)
+TRV_RSI <- rename(TRV_RSI, RSI_TRV = RSI)
+MSFT_RSI <- rename(MSFT_RSI, RSI_MSFT = RSI)
+IBM_RSI <- rename(IBM_RSI, RSI_IBM = RSI)
+MMM_RSI <- rename(MMM_RSI, RSI_MMM = RSI)
+UTX_RSI <- rename(UTX_RSI, RSI_UTX = RSI)
+UNH_RSI <- rename(UNH_RSI, RSI_UNH = RSI)
+CVX_RSI <- rename(CVX_RSI, RSI_CVX = RSI)
+
+CSCO_RSI$time <- substr(CSCO_RSI$time, start = 0, stop = 11)
+PFE_RSI$time <- substr(PFE_RSI$time, start = 0, stop = 11)
+GE_RSI$time <- substr(GE_RSI$time, start = 0, stop = 11)
+TRV_RSI$time <- substr(TRV_RSI$time, start = 0, stop = 11)
+MSFT_RSI$time <- substr(MSFT_RSI$time, start = 0, stop = 11)
+IBM_RSI$time <- substr(IBM_RSI$time, start = 0, stop = 11)
+MMM_RSI$time <- substr(MMM_RSI$time, start = 0, stop = 11)
+UTX_RSI$time <- substr(UTX_RSI$time, start = 0, stop = 11)
+UNH_RSI$time <- substr(UNH_RSI$time, start = 0, stop = 11)
+CVX_RSI$time <- substr(CVX_RSI$time, start = 0, stop = 11)
+
+CSCO_RSI$time <- as.Date(CSCO_RSI$time)
+PFE_RSI$time <- as.Date(PFE_RSI$time)
+GE_RSI$time <- as.Date(GE_RSI$time)
+TRV_RSI$time <- as.Date(TRV_RSI$time)
+MSFT_RSI$time <- as.Date(MSFT_RSI$time)
+IBM_RSI$time <- as.Date(IBM_RSI$time)
+MMM_RSI$time <- as.Date(MMM_RSI$time)
+UTX_RSI$time <- as.Date(UTX_RSI$time)
+UNH_RSI$time <- as.Date(UNH_RSI$time)
+CVX_RSI$time <- as.Date(CVX_RSI$time)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(CSCO_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/CSCO_RSI.csv")
+write_csv(PFE_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/PFE_RSI.csv")
+write_csv(GE_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/GE_RSI.csv")
+write_csv(TRV_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/TRV_RSI.csv")
+write_csv(MSFT_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/MSFT_RSI.csv")
+write_csv(IBM_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/IBM_RSI.csv")
+write_csv(MMM_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/MMM_RSI.csv")
+write_csv(UTX_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/UTX_RSI.csv")
+write_csv(UNH_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/UNH_RSI.csv")
+write_csv(CVX_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/CVX_RSI.csv")
+```
+
+```{r}
+RSI_ALL_Article <- CSCO_RSI %>%
+  inner_join(PFE_RSI) %>%
+  inner_join(GE_RSI) %>%
+  inner_join(TRV_RSI) %>%
+  inner_join(MSFT_RSI) %>% 
+  inner_join(IBM_RSI) %>%
+  inner_join(MMM_RSI) %>%
+  inner_join(UTX_RSI) %>%
+  inner_join(UNH_RSI) %>%
+  inner_join(CVX_RSI)
+```
+
+```{r}
+RSI_ALL_Article <- RSI_ALL_Article %>%
+  filter(time > "2013-11-25") %>%
+  filter(time < "2018-11-27")
+
+write_csv(RSI_ALL_Article, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/RSI_ALL_Article.csv")
+```
+
+```{r}
+colnames(Price_ALL_Article)[1] <- "time"
+
+#Alphabetize the data sets.
+ClosePrice_ALL_Article <- Price_ALL_Article %>% 
+  select(time, close_CSCO, close_CVX, close_GE, close_MMM, close_IBM, close_MSFT, close_PFE, close_TRV, close_UNH, close_UTX)
+
+
+RSI_ALL_Article <- RSI_ALL_Article %>% 
+  select(time, RSI_CSCO, RSI_CVX, RSI_GE, RSI_MMM, RSI_IBM, RSI_MSFT, RSI_PFE, RSI_TRV, RSI_UNH, RSI_UTX)
+
+STOCH_ALL_Article <- STOCH_ALL_Article %>% 
+  select(time, SlowD_CSCO, SlowK_CSCO, SlowD_CVX, SlowK_CVX, SlowD_GE, SlowK_GE, SlowD_MMM, SlowK_MMM, SlowD_IBM, SlowK_IBM, SlowD_MSFT, SlowK_MSFT, SlowD_PFE, SlowK_PFE, SlowD_TRV, SlowK_TRV, SlowD_UNH, SlowK_UNH, SlowD_UTX, SlowK_UTX)
+
+Master_Table_Article <- ClosePrice_ALL_Article %>% 
+  left_join(RSI_ALL_Article) %>% 
+  left_join(STOCH_ALL_Article)
+
+write_csv(RSI_ALL_Article, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Master_Table_Article.csv")
+```
+
+# Random Portfolio
+
+```{r, eval = FALSE}
+#Reading each price of the stocks from the Random portfolio into a .csv.
+NANO_Price <- read_csv(AlphaVantage_PriceGetter("NANO"))
+PEZ_Price <- read_csv(AlphaVantage_PriceGetter("PEZ"))
+FE_Price <- read_csv(AlphaVantage_PriceGetter("FE"))
+LKFN_Price <- read_csv(AlphaVantage_PriceGetter("LKFN"))
+LEA_Price <- read_csv(AlphaVantage_PriceGetter("LEA"))
+EPM_Price <- read_csv(AlphaVantage_PriceGetter("EPM"))
+ATHN_Price <- read_csv(AlphaVantage_PriceGetter("ATHN"))
+TFX_Price <- read_csv(AlphaVantage_PriceGetter("TFX"))
+IMAX_Price <- read_csv(AlphaVantage_PriceGetter("IMAX"))
+LOPE_Price <- read_csv(AlphaVantage_PriceGetter("LOPE"))
+```
+
+```{r, eval = FALSE}
+#Cleaning up the data.
+NANO_Price <- rename(NANO_Price, open_NANO = open, high_NANO = high, low_NANO = low, close_NANO = close, volume_NANO = volume)
+PEZ_Price <- rename(PEZ_Price, open_PEZ = open, high_PEZ = high, low_PEZ = low, close_PEZ = close, volume_PEZ = volume)
+FE_Price <- rename(FE_Price, open_FE = open, high_FE = high, low_FE = low, close_FE = close, volume_FE = volume)
+LKFN_Price <- rename(LKFN_Price, open_LKFN = open, high_LKFN = high, low_LKFN = low, close_LKFN = close, volume_LKFN = volume)
+LEA_Price <- rename(LEA_Price, open_LEA = open, high_LEA = high, low_LEA = low, close_LEA = close, volume_LEA = volume)
+EPM_Price <- rename(EPM_Price, open_EPM = open, high_EPM = high, low_EPM = low, close_EPM = close, volume_EPM = volume)
+ATHN_Price <- rename(ATHN_Price, open_ATHN = open, high_ATHN = high, low_ATHN = low, close_ATHN = close, volume_ATHN = volume)
+TFX_Price <- rename(TFX_Price, open_TFX = open, high_TFX = high, low_TFX = low, close_TFX = close, volume_TFX = volume)
+IMAX_Price <- rename(IMAX_Price, open_IMAX = open, high_IMAX = high, low_IMAX = low, close_IMAX = close, volume_IMAX = volume)
+LOPE_Price <- rename(LOPE_Price, open_LOPE = open, high_LOPE = high, low_LOPE = low, close_LOPE = close, volume_LOPE = volume)
+
+NANO_Price$timestamp <- as.Date(NANO_Price$timestamp)
+PEZ_Price$timestamp <- as.Date(PEZ_Price$timestamp)
+FE_Price$timestamp <- as.Date(FE_Price$timestamp)
+LKFN_Price$timestamp <- as.Date(LKFN_Price$timestamp)
+LEA_Price$timestamp <- as.Date(LEA_Price$timestamp)
+EPM_Price$timestamp <- as.Date(EPM_Price$timestamp)
+ATHN_Price$timestamp <- as.Date(ATHN_Price$timestamp)
+TFX_Price$timestamp <- as.Date(TFX_Price$timestamp)
+IMAX_Price$timestamp <- as.Date(IMAX_Price$timestamp)
+LOPE_Price$timestamp <- as.Date(LOPE_Price$timestamp)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(NANO_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/NANO_Price.csv")
+write_csv(PEZ_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/PEZ_Price.csv")
+write_csv(FE_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/FE_Price.csv")
+write_csv(LKFN_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/LKFN_Price.csv")
+write_csv(LEA_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/LEA_Price.csv")
+write_csv(EPM_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/EPM_Price.csv")
+write_csv(ATHN_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/ATHN_Price.csv")
+write_csv(TFX_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/TFX_Price.csv")
+write_csv(IMAX_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/IMAX_Price.csv")
+write_csv(LOPE_Price, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/LOPE_Price.csv")
+```
+
+```{r}
+Price_ALL_Random <- NANO_Price %>%
+  inner_join(PEZ_Price) %>%
+  inner_join(FE_Price) %>%
+  inner_join(LKFN_Price) %>%
+  inner_join(LEA_Price) %>% 
+  inner_join(EPM_Price) %>%
+  inner_join(ATHN_Price) %>%
+  inner_join(TFX_Price) %>%
+  inner_join(IMAX_Price) %>%
+  inner_join(LOPE_Price)
+```
+
+```{r}
+Price_ALL_Random <- Price_ALL_Random %>%
+  filter(timestamp > "2013-11-25") %>%
+  filter(timestamp < "2018-11-27")
+
+write_csv(Price_ALL_Random, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Prices/Price_ALL_Random.csv")
+```
+
+```{r}
+#Reading each STOCH of the stocks from the Random portfolio into a .csv.
+NANO_STOCH <- read_csv(AlphaVantage_STOCHGetter("NANO"))
+PEZ_STOCH <- read_csv(AlphaVantage_STOCHGetter("PEZ"))
+FE_STOCH <- read_csv(AlphaVantage_STOCHGetter("FE"))
+LKFN_STOCH <- read_csv(AlphaVantage_STOCHGetter("LKFN"))
+LEA_STOCH <- read_csv(AlphaVantage_STOCHGetter("LEA"))
+EPM_STOCH <- read_csv(AlphaVantage_STOCHGetter("EPM"))
+ATHN_STOCH <- read_csv(AlphaVantage_STOCHGetter("ATHN"))
+TFX_STOCH <- read_csv(AlphaVantage_STOCHGetter("TFX"))
+IMAX_STOCH <- read_csv(AlphaVantage_STOCHGetter("IMAX"))
+LOPE_STOCH <- read_csv(AlphaVantage_STOCHGetter("LOPE"))
+```
+
+```{r}
+#Cleaning the data.
+NANO_STOCH <- rename(NANO_STOCH, SlowD_NANO = SlowD, SlowK_NANO = SlowK)
+PEZ_STOCH <- rename(PEZ_STOCH, SlowD_PEZ = SlowD, SlowK_PEZ = SlowK)
+FE_STOCH <- rename(FE_STOCH, SlowD_FE = SlowD, SlowK_FE = SlowK)
+LKFN_STOCH <- rename(LKFN_STOCH, SlowD_LKFN = SlowD, SlowK_LKFN = SlowK)
+LEA_STOCH <- rename(LEA_STOCH, SlowD_LEA = SlowD, SlowK_LEA = SlowK)
+EPM_STOCH <- rename(EPM_STOCH, SlowD_EPM = SlowD, SlowK_EPM = SlowK)
+ATHN_STOCH <- rename(ATHN_STOCH, SlowD_ATHN = SlowD, SlowK_ATHN = SlowK)
+TFX_STOCH <- rename(TFX_STOCH, SlowD_TFX = SlowD, SlowK_TFX = SlowK)
+IMAX_STOCH <- rename(IMAX_STOCH, SlowD_IMAX = SlowD, SlowK_IMAX = SlowK)
+LOPE_STOCH <- rename(LOPE_STOCH, SlowD_LOPE = SlowD, SlowK_LOPE = SlowK)
+
+NANO_STOCH$time <- substr(NANO_STOCH$time, start = 0, stop = 11)
+PEZ_STOCH$time <- substr(PEZ_STOCH$time, start = 0, stop = 11)
+FE_STOCH$time <- substr(FE_STOCH$time, start = 0, stop = 11)
+LKFN_STOCH$time <- substr(LKFN_STOCH$time, start = 0, stop = 11)
+LEA_STOCH$time <- substr(LEA_STOCH$time, start = 0, stop = 11)
+EPM_STOCH$time <- substr(EPM_STOCH$time, start = 0, stop = 11)
+ATHN_STOCH$time <- substr(ATHN_STOCH$time, start = 0, stop = 11)
+TFX_STOCH$time <- substr(TFX_STOCH$time, start = 0, stop = 11)
+IMAX_STOCH$time <- substr(IMAX_STOCH$time, start = 0, stop = 11)
+LOPE_STOCH$time <- substr(LOPE_STOCH$time, start = 0, stop = 11)
+
+NANO_STOCH$time <- as.Date(NANO_STOCH$time)
+PEZ_STOCH$time <- as.Date(PEZ_STOCH$time)
+FE_STOCH$time <- as.Date(FE_STOCH$time)
+LKFN_STOCH$time <- as.Date(LKFN_STOCH$time)
+LEA_STOCH$time <- as.Date(LEA_STOCH$time)
+EPM_STOCH$time <- as.Date(EPM_STOCH$time)
+ATHN_STOCH$time <- as.Date(ATHN_STOCH$time)
+TFX_STOCH$time <- as.Date(TFX_STOCH$time)
+IMAX_STOCH$time <- as.Date(IMAX_STOCH$time)
+LOPE_STOCH$time <- as.Date(LOPE_STOCH$time)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(NANO_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/NANO_STOCH.csv")
+write_csv(PEZ_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/PEZ_STOCH.csv")
+write_csv(FE_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/FE_STOCH.csv")
+write_csv(LKFN_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/LKFN_STOCH.csv")
+write_csv(LEA_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/LEA_STOCH.csv")
+write_csv(EPM_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/EPM_STOCH.csv")
+write_csv(ATHN_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/ATHN_STOCH.csv")
+write_csv(TFX_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/TFX_STOCH.csv")
+write_csv(IMAX_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/IMAX_STOCH.csv")
+write_csv(LOPE_STOCH, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/LOPE_STOCH.csv")
+```
+
+```{r}
+STOCH_ALL_Random <- NANO_STOCH %>%
+  inner_join(PEZ_STOCH) %>%
+  inner_join(FE_STOCH) %>%
+  inner_join(LKFN_STOCH) %>%
+  inner_join(LEA_STOCH) %>% 
+  inner_join(EPM_STOCH) %>%
+  inner_join(ATHN_STOCH) %>%
+  inner_join(TFX_STOCH) %>%
+  inner_join(IMAX_STOCH) %>%
+  inner_join(LOPE_STOCH)
+```
+
+```{r}
+STOCH_ALL_Random <- STOCH_ALL_Random %>%
+  filter(time > "2013-11-25") %>%
+  filter(time < "2018-11-27")
+
+write_csv(STOCH_ALL_Random, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/STOCH/STOCH_ALL_Random.csv")
+```
+
+```{r}
+#Reading each RSI of the stocks from the Random portfolio into a .csv.
+NANO_RSI <- read_csv(AlphaVantage_RSIGetter("NANO", "20", "close"))
+PEZ_RSI <- read_csv(AlphaVantage_RSIGetter("PEZ", "20", "close"))
+FE_RSI <- read_csv(AlphaVantage_RSIGetter("FE", "20", "close"))
+LKFN_RSI <- read_csv(AlphaVantage_RSIGetter("LKFN", "20", "close"))
+LEA_RSI <- read_csv(AlphaVantage_RSIGetter("LEA", "20", "close"))
+EPM_RSI <- read_csv(AlphaVantage_RSIGetter("EPM", "20", "close"))
+ATHN_RSI <- read_csv(AlphaVantage_RSIGetter("ATHN", "20", "close"))
+TFX_RSI <- read_csv(AlphaVantage_RSIGetter("TFX", "20", "close"))
+IMAX_RSI <- read_csv(AlphaVantage_RSIGetter("IMAX", "20", "close"))
+LOPE_RSI <- read_csv(AlphaVantage_RSIGetter("LOPE", "20", "close"))
+```
+
+```{r}
+#Cleaning the data.
+NANO_RSI <- rename(NANO_RSI, RSI_NANO = RSI)
+ATHN_RSI <- rename(ATHN_RSI, RSI_ATHN = RSI)
+FE_RSI <- rename(FE_RSI, RSI_FE = RSI)
+TFX_RSI <- rename(TFX_RSI, RSI_TFX = RSI)
+EPM_RSI <- rename(EPM_RSI, RSI_EPM = RSI)
+LKFN_RSI <- rename(LKFN_RSI, RSI_LKFN = RSI)
+LEA_RSI <- rename(LEA_RSI, RSI_LEA = RSI)
+LOPE_RSI <- rename(LOPE_RSI, RSI_LOPE = RSI)
+IMAX_RSI <- rename(IMAX_RSI, RSI_IMAX = RSI)
+PEZ_RSI <- rename(PEZ_RSI, RSI_PEZ = RSI)
+
+NANO_RSI$time <- substr(NANO_RSI$time, start = 0, stop = 11)
+ATHN_RSI$time <- substr(ATHN_RSI$time, start = 0, stop = 11)
+FE_RSI$time <- substr(FE_RSI$time, start = 0, stop = 11)
+TFX_RSI$time <- substr(TFX_RSI$time, start = 0, stop = 11)
+EPM_RSI$time <- substr(EPM_RSI$time, start = 0, stop = 11)
+LKFN_RSI$time <- substr(LKFN_RSI$time, start = 0, stop = 11)
+LEA_RSI$time <- substr(LEA_RSI$time, start = 0, stop = 11)
+LOPE_RSI$time <- substr(LOPE_RSI$time, start = 0, stop = 11)
+IMAX_RSI$time <- substr(IMAX_RSI$time, start = 0, stop = 11)
+PEZ_RSI$time <- substr(PEZ_RSI$time, start = 0, stop = 11)
+
+NANO_RSI$time <- as.Date(NANO_RSI$time)
+ATHN_RSI$time <- as.Date(ATHN_RSI$time)
+FE_RSI$time <- as.Date(FE_RSI$time)
+TFX_RSI$time <- as.Date(TFX_RSI$time)
+EPM_RSI$time <- as.Date(EPM_RSI$time)
+LKFN_RSI$time <- as.Date(LKFN_RSI$time)
+LEA_RSI$time <- as.Date(LEA_RSI$time)
+LOPE_RSI$time <- as.Date(LOPE_RSI$time)
+IMAX_RSI$time <- as.Date(IMAX_RSI$time)
+PEZ_RSI$time <- as.Date(PEZ_RSI$time)
+```
+
+```{r, eval = FALSE}
+#Saving a hard copy of each to avoid continuing to request.
+write_csv(NANO_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/NANO_RSI.csv")
+write_csv(ATHN_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/ATHN_RSI.csv")
+write_csv(FE_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/FE_RSI.csv")
+write_csv(TFX_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/TFX_RSI.csv")
+write_csv(EPM_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/EPM_RSI.csv")
+write_csv(LKFN_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/LKFN_RSI.csv")
+write_csv(LEA_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/LEA_RSI.csv")
+write_csv(LOPE_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/LOPE_RSI.csv")
+write_csv(IMAX_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/IMAX_RSI.csv")
+write_csv(PEZ_RSI, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/PEZ_RSI.csv")
+```
+
+```{r}
+RSI_ALL_Random <- NANO_RSI %>%
+  inner_join(ATHN_RSI) %>%
+  inner_join(FE_RSI) %>%
+  inner_join(TFX_RSI) %>%
+  inner_join(EPM_RSI) %>% 
+  inner_join(LKFN_RSI) %>%
+  inner_join(LEA_RSI) %>%
+  inner_join(LOPE_RSI) %>%
+  inner_join(IMAX_RSI) %>%
+  inner_join(PEZ_RSI)
+```
+
+```{r}
+RSI_ALL_Random <- RSI_ALL_Random %>%
+  filter(time > "2013-11-25") %>%
+  filter(time < "2018-11-27")
+
+write_csv(RSI_ALL_Random, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/RSI/RSI_ALL_Random.csv")
+```
+
+```{r}
+colnames(Price_ALL_Random)[1] <- "time"
+
+#Alphabetize the data sets.
+ClosePrice_ALL_Random <- Price_ALL_Random %>% 
+  select(time, close_NANO, close_PEZ, close_FE, close_TFX, close_EPM, close_LKFN, close_LEA, close_LOPE, close_IMAX, close_ATHN)
+
+RSI_ALL_Random <- RSI_ALL_Random %>% 
+  select(time, RSI_NANO, RSI_PEZ, RSI_FE, RSI_TFX, RSI_EPM, RSI_LKFN, RSI_LEA, RSI_LOPE, RSI_IMAX, RSI_ATHN)
+
+STOCH_ALL_Random <- STOCH_ALL_Random %>% 
+  select(time, SlowD_NANO, SlowK_NANO, SlowD_PEZ, SlowK_PEZ, SlowD_FE, SlowK_FE, SlowD_TFX, SlowK_TFX, SlowD_EPM, SlowK_EPM, SlowD_LKFN, SlowK_LKFN, SlowD_LEA, SlowK_LEA, SlowD_LOPE, SlowK_LOPE, SlowD_IMAX, SlowK_IMAX, SlowD_ATHN, SlowK_ATHN)
+
+Master_Table_Random <- ClosePrice_ALL_Random %>% 
+  left_join(RSI_ALL_Random) %>% 
+  left_join(STOCH_ALL_Random)
+
+write_csv(Master_Table_Random, "/Users/nikhilsmith/Spreadsheets/School/College/Fall_2018/COMP_MATH_112/Final_Project/Master_Table_Random.csv")
+```
+
+Now we will run various simulations to calculate returns based on our indicators.
+
+# Returns for Fidelity Stocks Using RSI
+
+```{r}
+#Setting an initial level of capital, parameters for decision making.
+InitialCapital <- 1000
+RSISellLevel <- 60
+RSIBuyLevel <- 40
+```
+
+```{r}
+#Creating datasets for RSI.
+Create_Sim_Dataset_RSI <- function(SimDataName, OrigData, TechVar, StockPrice, PriceVar) {
+  SimDataName <- OrigData %>%
+    mutate(Action = ifelse(TechVar > RSISellLevel, "Sell", ifelse(TechVar < RSIBuyLevel, "Buy", "None"))) %>%
+    mutate(Capital = InitialCapital) %>%
+    mutate(StocksHeld = 0) %>%
+    inner_join(StockPrice, by=c("time"="timestamp")) %>%
+    select(1:5, PriceVar)%>%
+    filter(time > "2013-11-25") %>%
+    filter(time < "2018-11-27") %>% 
+    arrange(time)
+  return(SimDataName)
+}
+```
+
+```{r}
+Sim_CMCSA_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_CMCSA_RSI, CMCSA_RSI, CMCSA_RSI$RSI_CMCSA, CMCSA_Price, "close_CMCSA")
+Sim_CVX_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_CVX_RSI, CVX_RSI, CVX_RSI$RSI_CVX, CVX_Price, "close_CVX")
+Sim_GE_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_GE_RSI, GE_RSI, GE_RSI$RSI_GE, GE_Price, "close_GE")
+Sim_JNJ_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_JNJ_RSI, JNJ_RSI, JNJ_RSI$RSI_JNJ, JNJ_Price, "close_JNJ")
+Sim_JPM_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_JPM_RSI, JPM_RSI, JPM_RSI$RSI_JPM, JPM_Price, "close_JPM")
+Sim_MRK_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_MRK_RSI, MRK_RSI, MRK_RSI$RSI_MRK, MRK_Price, "close_MRK")
+Sim_PAYX_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_PAYX_RSI, PAYX_RSI, PAYX_RSI$RSI_PAYX, PAYX_Price, "close_PAYX")
+Sim_PFE_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_PFE_RSI, PFE_RSI, PFE_RSI$RSI_PFE, PFE_Price, "close_PFE")
+Sim_RDS.A_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_RDS.A_RSI, RDS.A_RSI, RDS.A_RSI$RSI_RDS.A, RDS.A_Price, "close_RDS.A")
+Sim_WFC_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_WFC_RSI, WFC_RSI, WFC_RSI$RSI_WFC, WFC_Price, "close_WFC")
+```
+
+```{r}
+Run_Model <- function(SimDataName, PriceVar) {
+  for(i in 2:(length(SimDataName$Action)-1)){
+    prev=(SimDataName$Action[i-1])
+    curr=(SimDataName$Action[i])
+    
+    if(prev=="Buy" & (curr=="Buy"|curr=="None")){
+      SimDataName$Action[i]="Hold"
+    }else if(prev=="Hold" & (curr=="None"|curr=="Buy")){
+      SimDataName$Action[i]="Hold"
+    }else if(prev=="Sell" & curr=="Sell"){
+      SimDataName$Action[i]="None"
+    }else if(prev=="None" & curr=="Sell"){
+      SimDataName$Action[i]="None"
+    }
+  }
+  
+  if(SimDataName$Action[1]=="Buy"){
+    SimDataName$StocksHeld[1]=(SimDataName$Capital[1]/PriceVar[1])
+    SimDataName$Capital[1]=0
+  }
+  
+  
+  for(i in 2:(length(SimDataName$Action)-1)){
+    prev=(SimDataName$Action[i-1])
+    curr=(SimDataName$Action[i])
+    
+    if(curr=="Buy"){
+      SimDataName$StocksHeld[i]=(SimDataName$Capital[i-1]/PriceVar[i])
+      SimDataName$Capital[i]=0
+    }else if(curr=="Sell"){
+      SimDataName$Capital[i]=(SimDataName$StocksHeld[i-1]*PriceVar[i])
+      SimDataName$StocksHeld[i]=0
+    }
+    else{
+      SimDataName$Capital[i]=SimDataName$Capital[i-1]
+      SimDataName$StocksHeld[i]=SimDataName$StocksHeld[i-1]
+    }
+  }
+  
+  if(SimDataName$StocksHeld[length(SimDataName$Action)-1]>0){
+    SimDataName$Capital[length(SimDataName$Action)]=(SimDataName$StocksHeld[length(SimDataName$Action)-1]*PriceVar[length(SimDataName$Action)])
+    SimDataName$Action[length(SimDataName$Action)]="Sell"
+    SimDataName$StocksHeld[length(SimDataName$Action)]=0  
+  }
+  
+  if(SimDataName$StocksHeld[length(SimDataName$Action)-1]==0){
+    SimDataName$Capital[length(SimDataName$Action)]=(SimDataName$Capital)[length(SimDataName$Action)-1]
+    SimDataName$Action[length(SimDataName$Action)]="None"
+  }
+  
+  return(SimDataName)
+}
+```
+
+```{r}
+Sim_CMCSA_RSI_Run <- Run_Model(Sim_CMCSA_RSI_Blank, Sim_CMCSA_RSI_Blank$close_CMCSA)
+Sim_CVX_RSI_Run <- Run_Model(Sim_CVX_RSI_Blank, Sim_CVX_RSI_Blank$close_CVX)
+Sim_GE_RSI_Run <- Run_Model(Sim_GE_RSI_Blank, Sim_GE_RSI_Blank$close_GE)
+Sim_JNJ_RSI_Run <- Run_Model(Sim_JNJ_RSI_Blank, Sim_JNJ_RSI_Blank$close_JNJ)
+Sim_JPM_RSI_Run <- Run_Model(Sim_JPM_RSI_Blank, Sim_JPM_RSI_Blank$close_JPM)
+Sim_MRK_RSI_Run <- Run_Model(Sim_MRK_RSI_Blank, Sim_MRK_RSI_Blank$close_MRK)
+Sim_PAYX_RSI_Run <- Run_Model(Sim_PAYX_RSI_Blank, Sim_PAYX_RSI_Blank$close_PAYX)
+Sim_PFE_RSI_Run <- Run_Model(Sim_PFE_RSI_Blank, Sim_PFE_RSI_Blank$close_PFE)
+Sim_RDS.A_RSI_Run <- Run_Model(Sim_RDS.A_RSI_Blank, Sim_RDS.A_RSI_Blank$close_RDS.A)
+Sim_WFC_RSI_Run <- Run_Model(Sim_WFC_RSI_Blank, Sim_WFC_RSI_Blank$close_WFC)
+```
+
+Calculate Returns for RSI:
+```{r}
+#CMCSA
+Returns_RSI_CMCSA <- (Sim_CMCSA_RSI_Run$Capital[length(Sim_CMCSA_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_CMCSA <- (Sim_CMCSA_RSI_Run$close_CMCSA[length(Sim_CMCSA_RSI_Run$Action)]/Sim_CMCSA_RSI_Run$close_CMCSA[1]-1)*100
+#CVX
+Returns_RSI_CVX <- (Sim_CVX_RSI_Run$Capital[length(Sim_CVX_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_CVX <- (Sim_CVX_RSI_Run$close_CVX[length(Sim_CVX_RSI_Run$Action)]/Sim_CVX_RSI_Run$close_CVX[1]-1)*100
+#GE
+Returns_RSI_GE <- (Sim_GE_RSI_Run$Capital[length(Sim_GE_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_GE <- (Sim_GE_RSI_Run$close_GE[length(Sim_GE_RSI_Run$Action)]/Sim_GE_RSI_Run$close_GE[1]-1)*100
+#JNJ
+Returns_RSI_JNJ <- (Sim_JNJ_RSI_Run$Capital[length(Sim_JNJ_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_JNJ <- (Sim_JNJ_RSI_Run$close_JNJ[length(Sim_JNJ_RSI_Run$Action)]/Sim_JNJ_RSI_Run$close_JNJ[1]-1)*100
+#JPM
+Returns_RSI_JPM <- (Sim_JPM_RSI_Run$Capital[length(Sim_JPM_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_JPM <- (Sim_JPM_RSI_Run$close_JPM[length(Sim_JPM_RSI_Run$Action)]/Sim_JPM_RSI_Run$close_JPM[1]-1)*100
+#MRK
+Returns_RSI_MRK <- (Sim_MRK_RSI_Run$Capital[length(Sim_MRK_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_MRK <- (Sim_MRK_RSI_Run$close_MRK[length(Sim_MRK_RSI_Run$Action)]/Sim_MRK_RSI_Run$close_MRK[1]-1)*100
+#PAYX
+Returns_RSI_PAYX <- (Sim_PAYX_RSI_Run$Capital[length(Sim_PAYX_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_PAYX <- (Sim_PAYX_RSI_Run$close_PAYX[length(Sim_PAYX_RSI_Run$Action)]/Sim_PAYX_RSI_Run$close_PAYX[1]-1)*100
+#PFE
+Returns_RSI_PFE <- (Sim_PFE_RSI_Run$Capital[length(Sim_PFE_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_PFE <- (Sim_PFE_RSI_Run$close_PFE[length(Sim_PFE_RSI_Run$Action)]/Sim_PFE_RSI_Run$close_PFE[1]-1)*100
+#RDS.A
+Returns_RSI_RDS.A <- (Sim_RDS.A_RSI_Run$Capital[length(Sim_RDS.A_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_RDS.A <- (Sim_RDS.A_RSI_Run$close_RDS.A[length(Sim_RDS.A_RSI_Run$Action)]/Sim_RDS.A_RSI_Run$close_RDS.A[1]-1)*100
+#WFC
+Returns_RSI_WFC <- (Sim_WFC_RSI_Run$Capital[length(Sim_WFC_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_WFC <- (Sim_WFC_RSI_Run$close_WFC[length(Sim_WFC_RSI_Run$Action)]/Sim_WFC_RSI_Run$close_WFC[1]-1)*100
+
+#Calculating difference variable for RSI.
+CMCSA_Diff_RSI <- Returns_RSI_CMCSA - Returns_CMCSA
+CVX_Diff_RSI <- Returns_RSI_CVX - Returns_CVX
+GE_Diff_RSI <- Returns_RSI_GE - Returns_GE
+JNJ_Diff_RSI <- Returns_RSI_JNJ - Returns_JNJ
+JPM_Diff_RSI <- Returns_RSI_JPM - Returns_JPM
+MRK_Diff_RSI <- Returns_RSI_MRK - Returns_MRK
+PAYX_Diff_RSI <- Returns_RSI_PAYX - Returns_PAYX
+PFE_Diff_RSI <- Returns_RSI_PFE - Returns_PFE
+RDS.A_Diff_RSI <- Returns_RSI_RDS.A - Returns_RDS.A
+WFC_Diff_RSI <- Returns_RSI_WFC - Returns_WFC
+```
+
+```{r}
+Results_RSI_Fidelity <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator",
+  "CMCSA", as.numeric(Returns_CMCSA), as.numeric(Returns_RSI_CMCSA), 
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_RSI_CVX), 
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_RSI_GE), 
+  "JNJ", as.numeric(Returns_JNJ), as.numeric(Returns_RSI_JNJ), 
+  "JPM", as.numeric(Returns_JPM), as.numeric(Returns_RSI_JPM), 
+  "MRK", as.numeric(Returns_MRK), as.numeric(Returns_RSI_MRK), 
+  "PAYX", as.numeric(Returns_PAYX), as.numeric(Returns_RSI_PAYX), 
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_RSI_PFE), 
+  "RDS.A", as.numeric(Returns_RDS.A), as.numeric(Returns_RSI_RDS.A), 
+  "WFC", as.numeric(Returns_WFC), as.numeric(Returns_RSI_WFC) 
+)
+  
+Results_RSI_Fidelity_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator", ~"Difference",
+  "CMCSA", as.numeric(Returns_CMCSA), as.numeric(Returns_RSI_CMCSA), as.numeric(CMCSA_Diff_RSI),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_RSI_CVX), as.numeric(CVX_Diff_RSI),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_RSI_GE), as.numeric(GE_Diff_RSI),
+  "JNJ", as.numeric(Returns_JNJ), as.numeric(Returns_RSI_JNJ), as.numeric(JNJ_Diff_RSI),
+  "JPM", as.numeric(Returns_JPM), as.numeric(Returns_RSI_JPM), as.numeric(JPM_Diff_RSI),
+  "MRK", as.numeric(Returns_MRK), as.numeric(Returns_RSI_MRK), as.numeric(MRK_Diff_RSI),
+  "PAYX", as.numeric(Returns_PAYX), as.numeric(Returns_RSI_PAYX), as.numeric(PAYX_Diff_RSI),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_RSI_PFE), as.numeric(PFE_Diff_RSI),
+  "RDS.A", as.numeric(Returns_RDS.A), as.numeric(Returns_RSI_RDS.A), as.numeric(RDS.A_Diff_RSI),
+  "WFC", as.numeric(Returns_WFC), as.numeric(Returns_RSI_WFC), as.numeric(WFC_Diff_RSI)
+)
+
+Results_RSI_Fidelity_Difference <- Results_RSI_Fidelity_Difference %>% 
+  arrange((Difference))
+
+rownames(Results_RSI_Fidelity) <- c("CMCSA", "CVX", "GE", "JNJ", "JPM", "MRK", "PAYX", "PFE", "RDS.A", "WFC")
+```
+
+```{r}
+library(reshape2)
+RSILong <- melt(Results_RSI_Fidelity)
+```
+
+```{r}
+names(RSILong)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=RSILong) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Original RSI Parameters (60/40)")
+```
+
+```{r}
+ggplot(data=Results_RSI_Fidelity_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`),  fill="#228B22") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Original RSI Parameters (60/40)")
+```
+
+# Returns for Fidelity Stocks Using Original STOCH
+
+```{r}
+STOCHSellLevel <- 70
+STOCHBuyLevel <- 30
+```
+
+```{r}
+#Creating datasets for STOCH.
+Create_Sim_Dataset_STOCH <- function(SimDataName, OrigData, TechVar, StockPrice, PriceVar) {
+  SimDataName <- OrigData %>%
+    mutate(Action = ifelse(TechVar > STOCHSellLevel, "Sell", ifelse(TechVar < STOCHBuyLevel, "Buy", "None"))) %>%
+    mutate(Capital = InitialCapital) %>%
+    mutate(StocksHeld = 0) %>%
+    inner_join(StockPrice, by=c("time"="timestamp")) %>%
+    select(1:6, PriceVar)%>%
+    filter(time > "2013-11-25") %>%
+    filter(time < "2018-11-27") %>% 
+    arrange(time)
+  return(SimDataName)
+}
+```
+
+```{r}
+Sim_CMCSA_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_CMCSA_STOCH, CMCSA_STOCH, CMCSA_STOCH$SlowD_CMCSA, CMCSA_Price, "close_CMCSA")
+Sim_CVX_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_CVX_STOCH, CVX_STOCH, CVX_STOCH$SlowD_CVX, CVX_Price, "close_CVX")
+Sim_GE_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_GE_STOCH, GE_STOCH, GE_STOCH$SlowD_GE, GE_Price, "close_GE")
+Sim_JNJ_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_JNJ_STOCH, JNJ_STOCH, JNJ_STOCH$SlowD_JNJ, JNJ_Price, "close_JNJ")
+Sim_JPM_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_JPM_STOCH, JPM_STOCH, JPM_STOCH$SlowD_JPM, JPM_Price, "close_JPM")
+Sim_MRK_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_MRK_STOCH, MRK_STOCH, MRK_STOCH$SlowD_MRK, MRK_Price, "close_MRK")
+Sim_PAYX_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_PAYX_STOCH, PAYX_STOCH, PAYX_STOCH$SlowD_PAYX, PAYX_Price, "close_PAYX")
+Sim_PFE_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_PFE_STOCH, PFE_STOCH, PFE_STOCH$SlowD_PFE, PFE_Price, "close_PFE")
+Sim_RDS.A_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_RDS.A_STOCH, RDS.A_STOCH, RDS.A_STOCH$SlowD_RDS.A, RDS.A_Price, "close_RDS.A")
+Sim_WFC_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_WFC_STOCH, WFC_STOCH, WFC_STOCH$SlowD_WFC, WFC_Price, "close_WFC")
+```
+
+```{r}
+Sim_CMCSA_STOCH_Run <- Run_Model(Sim_CMCSA_STOCH_Blank, Sim_CMCSA_STOCH_Blank$close_CMCSA)
+Sim_CVX_STOCH_Run <- Run_Model(Sim_CVX_STOCH_Blank, Sim_CVX_STOCH_Blank$close_CVX)
+Sim_GE_STOCH_Run <- Run_Model(Sim_GE_STOCH_Blank, Sim_GE_STOCH_Blank$close_GE)
+Sim_JNJ_STOCH_Run <- Run_Model(Sim_JNJ_STOCH_Blank, Sim_JNJ_STOCH_Blank$close_JNJ)
+Sim_JPM_STOCH_Run <- Run_Model(Sim_JPM_STOCH_Blank, Sim_JPM_STOCH_Blank$close_JPM)
+Sim_MRK_STOCH_Run <- Run_Model(Sim_MRK_STOCH_Blank, Sim_MRK_STOCH_Blank$close_MRK)
+Sim_PAYX_STOCH_Run <- Run_Model(Sim_PAYX_STOCH_Blank, Sim_PAYX_STOCH_Blank$close_PAYX)
+Sim_PFE_STOCH_Run <- Run_Model(Sim_PFE_STOCH_Blank, Sim_PFE_STOCH_Blank$close_PFE)
+Sim_RDS.A_STOCH_Run <- Run_Model(Sim_RDS.A_STOCH_Blank, Sim_RDS.A_STOCH_Blank$close_RDS.A)
+Sim_WFC_STOCH_Run <- Run_Model(Sim_WFC_STOCH_Blank, Sim_WFC_STOCH_Blank$close_WFC)
+```
+
+Calculate Returns for STOCH:
+```{r}
+#CMCSA
+Returns_STOCH_CMCSA <- (Sim_CMCSA_STOCH_Run$Capital[length(Sim_CMCSA_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_CMCSA <- (Sim_CMCSA_STOCH_Run$close_CMCSA[length(Sim_CMCSA_STOCH_Run$Action)]/Sim_CMCSA_STOCH_Run$close_CMCSA[1]-1)*100
+#CVX
+Returns_STOCH_CVX <- (Sim_CVX_STOCH_Run$Capital[length(Sim_CVX_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_CVX <- (Sim_CVX_STOCH_Run$close_CVX[length(Sim_CVX_STOCH_Run$Action)]/Sim_CVX_STOCH_Run$close_CVX[1]-1)*100
+#GE
+Returns_STOCH_GE <- (Sim_GE_STOCH_Run$Capital[length(Sim_GE_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_GE <- (Sim_GE_STOCH_Run$close_GE[length(Sim_GE_STOCH_Run$Action)]/Sim_GE_STOCH_Run$close_GE[1]-1)*100
+#JNJ
+Returns_STOCH_JNJ <- (Sim_JNJ_STOCH_Run$Capital[length(Sim_JNJ_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_JNJ <- (Sim_JNJ_STOCH_Run$close_JNJ[length(Sim_JNJ_STOCH_Run$Action)]/Sim_JNJ_STOCH_Run$close_JNJ[1]-1)*100
+#JPM
+Returns_STOCH_JPM <- (Sim_JPM_STOCH_Run$Capital[length(Sim_JPM_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_JPM <- (Sim_JPM_STOCH_Run$close_JPM[length(Sim_JPM_STOCH_Run$Action)]/Sim_JPM_STOCH_Run$close_JPM[1]-1)*100
+#MRK
+Returns_STOCH_MRK <- (Sim_MRK_STOCH_Run$Capital[length(Sim_MRK_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_MRK <- (Sim_MRK_STOCH_Run$close_MRK[length(Sim_MRK_STOCH_Run$Action)]/Sim_MRK_STOCH_Run$close_MRK[1]-1)*100
+#PAYX
+Returns_STOCH_PAYX <- (Sim_PAYX_STOCH_Run$Capital[length(Sim_PAYX_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_PAYX <- (Sim_PAYX_STOCH_Run$close_PAYX[length(Sim_PAYX_STOCH_Run$Action)]/Sim_PAYX_STOCH_Run$close_PAYX[1]-1)*100
+#PFE
+Returns_STOCH_PFE <- (Sim_PFE_STOCH_Run$Capital[length(Sim_PFE_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_PFE <- (Sim_PFE_STOCH_Run$close_PFE[length(Sim_PFE_STOCH_Run$Action)]/Sim_PFE_STOCH_Run$close_PFE[1]-1)*100
+#RDS.A
+Returns_STOCH_RDS.A <- (Sim_RDS.A_STOCH_Run$Capital[length(Sim_RDS.A_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_RDS.A <- (Sim_RDS.A_STOCH_Run$close_RDS.A[length(Sim_RDS.A_STOCH_Run$Action)]/Sim_RDS.A_STOCH_Run$close_RDS.A[1]-1)*100
+#WFC
+Returns_STOCH_WFC <- (Sim_WFC_STOCH_Run$Capital[length(Sim_WFC_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_WFC <- (Sim_WFC_STOCH_Run$close_WFC[length(Sim_WFC_STOCH_Run$Action)]/Sim_WFC_STOCH_Run$close_WFC[1]-1)*100
+
+#Calculating difference variable for STOCH.
+CMCSA_Diff_STOCH <- Returns_STOCH_CMCSA - Returns_CMCSA
+CVX_Diff_STOCH <- Returns_STOCH_CVX - Returns_CVX
+GE_Diff_STOCH <- Returns_STOCH_GE - Returns_GE
+JNJ_Diff_STOCH <- Returns_STOCH_JNJ - Returns_JNJ
+JPM_Diff_STOCH <- Returns_STOCH_JPM - Returns_JPM
+MRK_Diff_STOCH <- Returns_STOCH_MRK - Returns_MRK
+PAYX_Diff_STOCH <- Returns_STOCH_PAYX - Returns_PAYX
+PFE_Diff_STOCH <- Returns_STOCH_PFE - Returns_PFE
+RDS.A_Diff_STOCH <- Returns_STOCH_RDS.A - Returns_RDS.A
+WFC_Diff_STOCH <- Returns_STOCH_WFC - Returns_WFC
+```
+
+```{r}
+Results_STOCH_Fidelity <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator",
+  "CMCSA", as.numeric(Returns_CMCSA), as.numeric(Returns_STOCH_CMCSA),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_STOCH_CVX),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_STOCH_GE),
+  "JNJ", as.numeric(Returns_JNJ), as.numeric(Returns_STOCH_JNJ),
+  "JPM", as.numeric(Returns_JPM), as.numeric(Returns_STOCH_JPM),
+  "MRK", as.numeric(Returns_MRK), as.numeric(Returns_STOCH_MRK),
+  "PAYX", as.numeric(Returns_PAYX), as.numeric(Returns_STOCH_PAYX),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_STOCH_PFE),
+  "RDS.A", as.numeric(Returns_RDS.A), as.numeric(Returns_STOCH_RDS.A),
+  "WFC", as.numeric(Returns_WFC), as.numeric(Returns_STOCH_WFC)
+)
+
+Results_STOCH_Fidelity_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator", ~"Difference",
+  "CMCSA", as.numeric(Returns_CMCSA), as.numeric(Returns_STOCH_CMCSA), as.numeric(CMCSA_Diff_STOCH),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_STOCH_CVX), as.numeric(CVX_Diff_STOCH),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_STOCH_GE), as.numeric(GE_Diff_STOCH),
+  "JNJ", as.numeric(Returns_JNJ), as.numeric(Returns_STOCH_JNJ), as.numeric(JNJ_Diff_STOCH),
+  "JPM", as.numeric(Returns_JPM), as.numeric(Returns_STOCH_JPM), as.numeric(JPM_Diff_STOCH),
+  "MRK", as.numeric(Returns_MRK), as.numeric(Returns_STOCH_MRK), as.numeric(MRK_Diff_STOCH),
+  "PAYX", as.numeric(Returns_PAYX), as.numeric(Returns_STOCH_PAYX), as.numeric(PAYX_Diff_STOCH),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_STOCH_PFE), as.numeric(PFE_Diff_STOCH),
+  "RDS.A", as.numeric(Returns_RDS.A), as.numeric(Returns_STOCH_RDS.A), as.numeric(RDS.A_Diff_STOCH),
+  "WFC", as.numeric(Returns_WFC), as.numeric(Returns_STOCH_WFC), as.numeric(WFC_Diff_STOCH)
+)
+
+Results_STOCH_Fidelity_Difference <- Results_STOCH_Fidelity_Difference %>% 
+  arrange((Difference))
+
+rownames(Results_STOCH_Fidelity) <- c("CMCSA", "CVX", "GE", "JNJ", "JPM", "MRK", "PAYX", "PFE", "RDS.A", "WFC")
+```
+
+```{r}
+library(reshape2)
+STOCHLong <- melt(Results_STOCH_Fidelity)
+```
+
+```{r}
+names(STOCHLong)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=STOCHLong) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Original STOCH Parameters (70/30)")
+```
+
+```{r}
+ggplot(data=Results_STOCH_Fidelity_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`), fill = "#FFA500") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Original STOCH Parameters (70/30)")
+```
+
+```{r}
+#Mean performance calculations.
+Mean_Fidelity_Hold_Return <- (mean(Results_STOCH_Fidelity$`Buy/Hold`))
+Mean_Fidelity_RSI_Return <- (mean(Results_RSI_Fidelity$`RSI Indicator`))
+Mean_Fidelity_STOCH_Return <- (mean(Results_STOCH_Fidelity$`STOCH Indicator`))
+```
+
+# Returns for Article Stocks Using RSI
+
+```{r}
+Sim_CSCO_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_CSCO_RSI, CSCO_RSI, CSCO_RSI$RSI_CSCO, CSCO_Price, "close_CSCO")
+Sim_CVX_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_CVX_RSI, CVX_RSI, CVX_RSI$RSI_CVX, CVX_Price, "close_CVX")
+Sim_GE_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_GE_RSI, GE_RSI, GE_RSI$RSI_GE, GE_Price, "close_GE")
+Sim_IBM_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_IBM_RSI, IBM_RSI, IBM_RSI$RSI_IBM, IBM_Price, "close_IBM")
+Sim_MMM_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_MMM_RSI, MMM_RSI, MMM_RSI$RSI_MMM, MMM_Price, "close_MMM")
+Sim_MSFT_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_MSFT_RSI, MSFT_RSI, MSFT_RSI$RSI_MSFT, MSFT_Price, "close_MSFT")
+Sim_TRV_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_TRV_RSI, TRV_RSI, TRV_RSI$RSI_TRV, TRV_Price, "close_TRV")
+Sim_PFE_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_PFE_RSI, PFE_RSI, PFE_RSI$RSI_PFE, PFE_Price, "close_PFE")
+Sim_UNH_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_UNH_RSI, UNH_RSI, UNH_RSI$RSI_UNH, UNH_Price, "close_UNH")
+Sim_UTX_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_UTX_RSI, UTX_RSI, UTX_RSI$RSI_UTX, UTX_Price, "close_UTX")
+```
+
+```{r}
+Sim_CSCO_RSI_Run <- Run_Model(Sim_CSCO_RSI_Blank, Sim_CSCO_RSI_Blank$close_CSCO)
+Sim_CVX_RSI_Run <- Run_Model(Sim_CVX_RSI_Blank, Sim_CVX_RSI_Blank$close_CVX)
+Sim_GE_RSI_Run <- Run_Model(Sim_GE_RSI_Blank, Sim_GE_RSI_Blank$close_GE)
+Sim_IBM_RSI_Run <- Run_Model(Sim_IBM_RSI_Blank, Sim_IBM_RSI_Blank$close_IBM)
+Sim_MMM_RSI_Run <- Run_Model(Sim_MMM_RSI_Blank, Sim_MMM_RSI_Blank$close_MMM)
+Sim_MSFT_RSI_Run <- Run_Model(Sim_MSFT_RSI_Blank, Sim_MSFT_RSI_Blank$close_MSFT)
+Sim_TRV_RSI_Run <- Run_Model(Sim_TRV_RSI_Blank, Sim_TRV_RSI_Blank$close_TRV)
+Sim_PFE_RSI_Run <- Run_Model(Sim_PFE_RSI_Blank, Sim_PFE_RSI_Blank$close_PFE)
+Sim_UNH_RSI_Run <- Run_Model(Sim_UNH_RSI_Blank, Sim_UNH_RSI_Blank$close_UNH)
+Sim_UTX_RSI_Run <- Run_Model(Sim_UTX_RSI_Blank, Sim_UTX_RSI_Blank$close_UTX)
+```
+
+Calculate Returns for RSI:
+```{r}
+#CSCO
+Returns_RSI_CSCO <- (Sim_CSCO_RSI_Run$Capital[length(Sim_CSCO_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_CSCO <- (Sim_CSCO_RSI_Run$close_CSCO[length(Sim_CSCO_RSI_Run$Action)]/Sim_CSCO_RSI_Run$close_CSCO[1]-1)*100
+#CVX
+Returns_RSI_CVX <- (Sim_CVX_RSI_Run$Capital[length(Sim_CVX_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_CVX <- (Sim_CVX_RSI_Run$close_CVX[length(Sim_CVX_RSI_Run$Action)]/Sim_CVX_RSI_Run$close_CVX[1]-1)*100
+#GE
+Returns_RSI_GE <- (Sim_GE_RSI_Run$Capital[length(Sim_GE_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_GE <- (Sim_GE_RSI_Run$close_GE[length(Sim_GE_RSI_Run$Action)]/Sim_GE_RSI_Run$close_GE[1]-1)*100
+#IBM
+Returns_RSI_IBM <- (Sim_IBM_RSI_Run$Capital[length(Sim_IBM_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_IBM <- (Sim_IBM_RSI_Run$close_IBM[length(Sim_IBM_RSI_Run$Action)]/Sim_IBM_RSI_Run$close_IBM[1]-1)*100
+#MMM
+Returns_RSI_MMM <- (Sim_MMM_RSI_Run$Capital[length(Sim_MMM_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_MMM <- (Sim_MMM_RSI_Run$close_MMM[length(Sim_MMM_RSI_Run$Action)]/Sim_MMM_RSI_Run$close_MMM[1]-1)*100
+#MSFT
+Returns_RSI_MSFT <- (Sim_MSFT_RSI_Run$Capital[length(Sim_MSFT_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_MSFT <- (Sim_MSFT_RSI_Run$close_MSFT[length(Sim_MSFT_RSI_Run$Action)]/Sim_MSFT_RSI_Run$close_MSFT[1]-1)*100
+#TRV
+Returns_RSI_TRV <- (Sim_TRV_RSI_Run$Capital[length(Sim_TRV_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_TRV <- (Sim_TRV_RSI_Run$close_TRV[length(Sim_TRV_RSI_Run$Action)]/Sim_TRV_RSI_Run$close_TRV[1]-1)*100
+#PFE
+Returns_RSI_PFE <- (Sim_PFE_RSI_Run$Capital[length(Sim_PFE_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_PFE <- (Sim_PFE_RSI_Run$close_PFE[length(Sim_PFE_RSI_Run$Action)]/Sim_PFE_RSI_Run$close_PFE[1]-1)*100
+#UNH
+Returns_RSI_UNH <- (Sim_UNH_RSI_Run$Capital[length(Sim_UNH_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_UNH <- (Sim_UNH_RSI_Run$close_UNH[length(Sim_UNH_RSI_Run$Action)]/Sim_UNH_RSI_Run$close_UNH[1]-1)*100
+#UTX
+Returns_RSI_UTX <- (Sim_UTX_RSI_Run$Capital[length(Sim_UTX_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_UTX <- (Sim_UTX_RSI_Run$close_UTX[length(Sim_UTX_RSI_Run$Action)]/Sim_UTX_RSI_Run$close_UTX[1]-1)*100
+
+#Calculating difference variable for RSI.
+CSCO_Diff_RSI <- Returns_RSI_CSCO - Returns_CSCO
+CVX_Diff_RSI <- Returns_RSI_CVX - Returns_CVX
+GE_Diff_RSI <- Returns_RSI_GE - Returns_GE
+IBM_Diff_RSI <- Returns_RSI_IBM - Returns_IBM
+MMM_Diff_RSI <- Returns_RSI_MMM - Returns_MMM
+MSFT_Diff_RSI <- Returns_RSI_MSFT - Returns_MSFT
+TRV_Diff_RSI <- Returns_RSI_TRV - Returns_TRV
+PFE_Diff_RSI <- Returns_RSI_PFE - Returns_PFE
+UNH_Diff_RSI <- Returns_RSI_UNH - Returns_UNH
+UTX_Diff_RSI <- Returns_RSI_UTX - Returns_UTX
+```
+
+```{r}
+Results_RSI_Article <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator",
+  "CSCO", as.numeric(Returns_CSCO), as.numeric(Returns_RSI_CSCO), 
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_RSI_CVX), 
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_RSI_GE), 
+  "IBM", as.numeric(Returns_IBM), as.numeric(Returns_RSI_IBM), 
+  "MMM", as.numeric(Returns_MMM), as.numeric(Returns_RSI_MMM), 
+  "MSFT", as.numeric(Returns_MSFT), as.numeric(Returns_RSI_MSFT), 
+  "TRV", as.numeric(Returns_TRV), as.numeric(Returns_RSI_TRV), 
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_RSI_PFE), 
+  "UNH", as.numeric(Returns_UNH), as.numeric(Returns_RSI_UNH), 
+  "UTX", as.numeric(Returns_UTX), as.numeric(Returns_RSI_UTX) 
+)
+  
+Results_RSI_Article_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator", ~"Difference",
+  "CSCO", as.numeric(Returns_CSCO), as.numeric(Returns_RSI_CSCO), as.numeric(CSCO_Diff_RSI),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_RSI_CVX), as.numeric(CVX_Diff_RSI),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_RSI_GE), as.numeric(GE_Diff_RSI),
+  "IBM", as.numeric(Returns_IBM), as.numeric(Returns_RSI_IBM), as.numeric(IBM_Diff_RSI),
+  "MMM", as.numeric(Returns_MMM), as.numeric(Returns_RSI_MMM), as.numeric(MMM_Diff_RSI),
+  "MSFT", as.numeric(Returns_MSFT), as.numeric(Returns_RSI_MSFT), as.numeric(MSFT_Diff_RSI),
+  "TRV", as.numeric(Returns_TRV), as.numeric(Returns_RSI_TRV), as.numeric(TRV_Diff_RSI),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_RSI_PFE), as.numeric(PFE_Diff_RSI),
+  "UNH", as.numeric(Returns_UNH), as.numeric(Returns_RSI_UNH), as.numeric(UNH_Diff_RSI),
+  "UTX", as.numeric(Returns_UTX), as.numeric(Returns_RSI_UTX), as.numeric(UTX_Diff_RSI)
+)
+
+Results_RSI_Article_Difference <- Results_RSI_Article_Difference %>% 
+  arrange((Difference))
+
+rownames(Results_RSI_Article) <- c("CSCO", "CVX", "GE", "IBM", "MMM", "MSFT", "TRV", "PFE", "UNH", "UTX")
+```
+
+```{r}
+library(reshape2)
+RSILong_Article <- melt(Results_RSI_Article)
+```
+
+```{r}
+names(RSILong_Article)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=RSILong_Article) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Original RSI Parameters (60/40)")
+```
+
+```{r}
+ggplot(data=Results_RSI_Article_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`),  fill="#228B22") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Original RSI Parameters (60/40)")
+```
+
+```{r}
+#Mean performance calculations.
+Mean_Article_RSI_Return <- (mean(Results_RSI_Article_Difference$`Difference`))
+
+Mean_Article_RSI_Return
+
+Mean_Fidelity_Opt_RSI_Return
+Mean_Fidelity_Opt_STOCH_Return
+Mean_Article_Opt_RSI_Return
+Mean_Article_Opt_STOCH_Return
+Mean_Random_Opt_RSI_Difference
+Mean_Random_Opt_STOCH_Return
+```
+
+# Returns for Article Stocks Using STOCH
+
+```{r}
+Sim_CSCO_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_CSCO_STOCH, CSCO_STOCH, CSCO_STOCH$SlowD_CSCO, CSCO_Price, "close_CSCO")
+Sim_CVX_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_CVX_STOCH, CVX_STOCH, CVX_STOCH$SlowD_CVX, CVX_Price, "close_CVX")
+Sim_GE_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_GE_STOCH, GE_STOCH, GE_STOCH$SlowD_GE, GE_Price, "close_GE")
+Sim_IBM_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_IBM_STOCH, IBM_STOCH, IBM_STOCH$SlowD_IBM, IBM_Price, "close_IBM")
+Sim_MMM_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_MMM_STOCH, MMM_STOCH, MMM_STOCH$SlowD_MMM, MMM_Price, "close_MMM")
+Sim_MSFT_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_MSFT_STOCH, MSFT_STOCH, MSFT_STOCH$SlowD_MSFT, MSFT_Price, "close_MSFT")
+Sim_TRV_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_TRV_STOCH, TRV_STOCH, TRV_STOCH$SlowD_TRV, TRV_Price, "close_TRV")
+Sim_PFE_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_PFE_STOCH, PFE_STOCH, PFE_STOCH$SlowD_PFE, PFE_Price, "close_PFE")
+Sim_UNH_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_UNH_STOCH, UNH_STOCH, UNH_STOCH$SlowD_UNH, UNH_Price, "close_UNH")
+Sim_UTX_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_UTX_STOCH, UTX_STOCH, UTX_STOCH$SlowD_UTX, UTX_Price, "close_UTX")
+```
+
+```{r}
+Sim_CSCO_STOCH_Run <- Run_Model(Sim_CSCO_STOCH_Blank, Sim_CSCO_STOCH_Blank$close_CSCO)
+Sim_CVX_STOCH_Run <- Run_Model(Sim_CVX_STOCH_Blank, Sim_CVX_STOCH_Blank$close_CVX)
+Sim_GE_STOCH_Run <- Run_Model(Sim_GE_STOCH_Blank, Sim_GE_STOCH_Blank$close_GE)
+Sim_IBM_STOCH_Run <- Run_Model(Sim_IBM_STOCH_Blank, Sim_IBM_STOCH_Blank$close_IBM)
+Sim_MMM_STOCH_Run <- Run_Model(Sim_MMM_STOCH_Blank, Sim_MMM_STOCH_Blank$close_MMM)
+Sim_MSFT_STOCH_Run <- Run_Model(Sim_MSFT_STOCH_Blank, Sim_MSFT_STOCH_Blank$close_MSFT)
+Sim_TRV_STOCH_Run <- Run_Model(Sim_TRV_STOCH_Blank, Sim_TRV_STOCH_Blank$close_TRV)
+Sim_PFE_STOCH_Run <- Run_Model(Sim_PFE_STOCH_Blank, Sim_PFE_STOCH_Blank$close_PFE)
+Sim_UNH_STOCH_Run <- Run_Model(Sim_UNH_STOCH_Blank, Sim_UNH_STOCH_Blank$close_UNH)
+Sim_UTX_STOCH_Run <- Run_Model(Sim_UTX_STOCH_Blank, Sim_UTX_STOCH_Blank$close_UTX)
+```
+
+Calculate Returns for STOCH:
+```{r}
+#CSCO
+Returns_STOCH_CSCO <- (Sim_CSCO_STOCH_Run$Capital[length(Sim_CSCO_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_CSCO <- (Sim_CSCO_STOCH_Run$close_CSCO[length(Sim_CSCO_STOCH_Run$Action)]/Sim_CSCO_STOCH_Run$close_CSCO[1]-1)*100
+#CVX
+Returns_STOCH_CVX <- (Sim_CVX_STOCH_Run$Capital[length(Sim_CVX_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_CVX <- (Sim_CVX_STOCH_Run$close_CVX[length(Sim_CVX_STOCH_Run$Action)]/Sim_CVX_STOCH_Run$close_CVX[1]-1)*100
+#GE
+Returns_STOCH_GE <- (Sim_GE_STOCH_Run$Capital[length(Sim_GE_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_GE <- (Sim_GE_STOCH_Run$close_GE[length(Sim_GE_STOCH_Run$Action)]/Sim_GE_STOCH_Run$close_GE[1]-1)*100
+#IBM
+Returns_STOCH_IBM <- (Sim_IBM_STOCH_Run$Capital[length(Sim_IBM_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_IBM <- (Sim_IBM_STOCH_Run$close_IBM[length(Sim_IBM_STOCH_Run$Action)]/Sim_IBM_STOCH_Run$close_IBM[1]-1)*100
+#MMM
+Returns_STOCH_MMM <- (Sim_MMM_STOCH_Run$Capital[length(Sim_MMM_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_MMM <- (Sim_MMM_STOCH_Run$close_MMM[length(Sim_MMM_STOCH_Run$Action)]/Sim_MMM_STOCH_Run$close_MMM[1]-1)*100
+#MSFT
+Returns_STOCH_MSFT <- (Sim_MSFT_STOCH_Run$Capital[length(Sim_MSFT_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_MSFT <- (Sim_MSFT_STOCH_Run$close_MSFT[length(Sim_MSFT_STOCH_Run$Action)]/Sim_MSFT_STOCH_Run$close_MSFT[1]-1)*100
+#TRV
+Returns_STOCH_TRV <- (Sim_TRV_STOCH_Run$Capital[length(Sim_TRV_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_TRV <- (Sim_TRV_STOCH_Run$close_TRV[length(Sim_TRV_STOCH_Run$Action)]/Sim_TRV_STOCH_Run$close_TRV[1]-1)*100
+#PFE
+Returns_STOCH_PFE <- (Sim_PFE_STOCH_Run$Capital[length(Sim_PFE_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_PFE <- (Sim_PFE_STOCH_Run$close_PFE[length(Sim_PFE_STOCH_Run$Action)]/Sim_PFE_STOCH_Run$close_PFE[1]-1)*100
+#UNH
+Returns_STOCH_UNH <- (Sim_UNH_STOCH_Run$Capital[length(Sim_UNH_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_UNH <- (Sim_UNH_STOCH_Run$close_UNH[length(Sim_UNH_STOCH_Run$Action)]/Sim_UNH_STOCH_Run$close_UNH[1]-1)*100
+#UTX
+Returns_STOCH_UTX <- (Sim_UTX_STOCH_Run$Capital[length(Sim_UTX_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_UTX <- (Sim_UTX_STOCH_Run$close_UTX[length(Sim_UTX_STOCH_Run$Action)]/Sim_UTX_STOCH_Run$close_UTX[1]-1)*100
+
+#Calculating difference variable for STOCH.
+CSCO_Diff_STOCH <- Returns_STOCH_CSCO - Returns_CSCO
+CVX_Diff_STOCH <- Returns_STOCH_CVX - Returns_CVX
+GE_Diff_STOCH <- Returns_STOCH_GE - Returns_GE
+IBM_Diff_STOCH <- Returns_STOCH_IBM - Returns_IBM
+MMM_Diff_STOCH <- Returns_STOCH_MMM - Returns_MMM
+MSFT_Diff_STOCH <- Returns_STOCH_MSFT - Returns_MSFT
+TRV_Diff_STOCH <- Returns_STOCH_TRV - Returns_TRV
+PFE_Diff_STOCH <- Returns_STOCH_PFE - Returns_PFE
+UNH_Diff_STOCH <- Returns_STOCH_UNH - Returns_UNH
+UTX_Diff_STOCH <- Returns_STOCH_UTX - Returns_UTX
+```
+
+```{r}
+Results_STOCH_Article <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator",
+  "CSCO", as.numeric(Returns_CSCO), as.numeric(Returns_STOCH_CSCO),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_STOCH_CVX),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_STOCH_GE),
+  "IBM", as.numeric(Returns_IBM), as.numeric(Returns_STOCH_IBM),
+  "MMM", as.numeric(Returns_MMM), as.numeric(Returns_STOCH_MMM),
+  "MSFT", as.numeric(Returns_MSFT), as.numeric(Returns_STOCH_MSFT),
+  "TRV", as.numeric(Returns_TRV), as.numeric(Returns_STOCH_TRV),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_STOCH_PFE),
+  "UNH", as.numeric(Returns_UNH), as.numeric(Returns_STOCH_UNH),
+  "UTX", as.numeric(Returns_UTX), as.numeric(Returns_STOCH_UTX)
+)
+
+Results_STOCH_Article_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator", ~"Difference",
+  "CSCO", as.numeric(Returns_CSCO), as.numeric(Returns_STOCH_CSCO), as.numeric(CSCO_Diff_STOCH),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_STOCH_CVX), as.numeric(CVX_Diff_STOCH),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_STOCH_GE), as.numeric(GE_Diff_STOCH),
+  "IBM", as.numeric(Returns_IBM), as.numeric(Returns_STOCH_IBM), as.numeric(IBM_Diff_STOCH),
+  "MMM", as.numeric(Returns_MMM), as.numeric(Returns_STOCH_MMM), as.numeric(MMM_Diff_STOCH),
+  "MSFT", as.numeric(Returns_MSFT), as.numeric(Returns_STOCH_MSFT), as.numeric(MSFT_Diff_STOCH),
+  "TRV", as.numeric(Returns_TRV), as.numeric(Returns_STOCH_TRV), as.numeric(TRV_Diff_STOCH),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_STOCH_PFE), as.numeric(PFE_Diff_STOCH),
+  "UNH", as.numeric(Returns_UNH), as.numeric(Returns_STOCH_UNH), as.numeric(UNH_Diff_STOCH),
+  "UTX", as.numeric(Returns_UTX), as.numeric(Returns_STOCH_UTX), as.numeric(UTX_Diff_STOCH)
+)
+
+Results_STOCH_Article_Difference <- Results_STOCH_Article_Difference %>% 
+  arrange((Difference))
+
+rownames(Results_STOCH_Article) <- c("CSCO", "CVX", "GE", "IBM", "MMM", "MSFT", "TRV", "PFE", "UNH", "UTX")
+```
+
+```{r}
+library(reshape2)
+STOCHLong_Article <- melt(Results_STOCH_Article)
+```
+
+```{r}
+names(STOCHLong_Article)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=STOCHLong_Article) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Original STOCH Parameters (70/30)")
+```
+
+```{r}
+ggplot(data=Results_STOCH_Article_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`), fill = "#FFA500") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Original STOCH Parameters (70/30)")
+```
+
+# Returns for Random Stocks Using RSI
+
+```{r}
+Sim_NANO_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_NANO_RSI, NANO_RSI, NANO_RSI$RSI_NANO, NANO_Price, "close_NANO")
+Sim_PEZ_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_PEZ_RSI, PEZ_RSI, PEZ_RSI$RSI_PEZ, PEZ_Price, "close_PEZ")
+Sim_FE_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_FE_RSI, FE_RSI, FE_RSI$RSI_FE, FE_Price, "close_FE")
+Sim_TFX_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_TFX_RSI, TFX_RSI, TFX_RSI$RSI_TFX, TFX_Price, "close_TFX")
+Sim_EPM_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_EPM_RSI, EPM_RSI, EPM_RSI$RSI_EPM, EPM_Price, "close_EPM")
+Sim_LKFN_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_LKFN_RSI, LKFN_RSI, LKFN_RSI$RSI_LKFN, LKFN_Price, "close_LKFN")
+Sim_LEA_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_LEA_RSI, LEA_RSI, LEA_RSI$RSI_LEA, LEA_Price, "close_LEA")
+Sim_LOPE_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_LOPE_RSI, LOPE_RSI, LOPE_RSI$RSI_LOPE, LOPE_Price, "close_LOPE")
+Sim_IMAX_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_IMAX_RSI, IMAX_RSI, IMAX_RSI$RSI_IMAX, IMAX_Price, "close_IMAX")
+Sim_ATHN_RSI_Blank <- Create_Sim_Dataset_RSI(Sim_ATHN_RSI, ATHN_RSI, ATHN_RSI$RSI_ATHN, ATHN_Price, "close_ATHN")
+```
+
+```{r}
+Sim_NANO_RSI_Run <- Run_Model(Sim_NANO_RSI_Blank, Sim_NANO_RSI_Blank$close_NANO)
+Sim_PEZ_RSI_Run <- Run_Model(Sim_PEZ_RSI_Blank, Sim_PEZ_RSI_Blank$close_PEZ)
+Sim_FE_RSI_Run <- Run_Model(Sim_FE_RSI_Blank, Sim_FE_RSI_Blank$close_FE)
+Sim_TFX_RSI_Run <- Run_Model(Sim_TFX_RSI_Blank, Sim_TFX_RSI_Blank$close_TFX)
+Sim_EPM_RSI_Run <- Run_Model(Sim_EPM_RSI_Blank, Sim_EPM_RSI_Blank$close_EPM)
+Sim_LKFN_RSI_Run <- Run_Model(Sim_LKFN_RSI_Blank, Sim_LKFN_RSI_Blank$close_LKFN)
+Sim_LEA_RSI_Run <- Run_Model(Sim_LEA_RSI_Blank, Sim_LEA_RSI_Blank$close_LEA)
+Sim_LOPE_RSI_Run <- Run_Model(Sim_LOPE_RSI_Blank, Sim_LOPE_RSI_Blank$close_LOPE)
+Sim_IMAX_RSI_Run <- Run_Model(Sim_IMAX_RSI_Blank, Sim_IMAX_RSI_Blank$close_IMAX)
+Sim_ATHN_RSI_Run <- Run_Model(Sim_ATHN_RSI_Blank, Sim_ATHN_RSI_Blank$close_ATHN)
+```
+
+Calculate Returns for RSI:
+```{r}
+#NANO
+Returns_RSI_NANO <- (Sim_NANO_RSI_Run$Capital[length(Sim_NANO_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_NANO <- (Sim_NANO_RSI_Run$close_NANO[length(Sim_NANO_RSI_Run$Action)]/Sim_NANO_RSI_Run$close_NANO[1]-1)*100
+#PEZ
+Returns_RSI_PEZ <- (Sim_PEZ_RSI_Run$Capital[length(Sim_PEZ_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_PEZ <- (Sim_PEZ_RSI_Run$close_PEZ[length(Sim_PEZ_RSI_Run$Action)]/Sim_PEZ_RSI_Run$close_PEZ[1]-1)*100
+#FE
+Returns_RSI_FE <- (Sim_FE_RSI_Run$Capital[length(Sim_FE_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_FE <- (Sim_FE_RSI_Run$close_FE[length(Sim_FE_RSI_Run$Action)]/Sim_FE_RSI_Run$close_FE[1]-1)*100
+#TFX
+Returns_RSI_TFX <- (Sim_TFX_RSI_Run$Capital[length(Sim_TFX_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_TFX <- (Sim_TFX_RSI_Run$close_TFX[length(Sim_TFX_RSI_Run$Action)]/Sim_TFX_RSI_Run$close_TFX[1]-1)*100
+#EPM
+Returns_RSI_EPM <- (Sim_EPM_RSI_Run$Capital[length(Sim_EPM_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_EPM <- (Sim_EPM_RSI_Run$close_EPM[length(Sim_EPM_RSI_Run$Action)]/Sim_EPM_RSI_Run$close_EPM[1]-1)*100
+#LKFN
+Returns_RSI_LKFN <- (Sim_LKFN_RSI_Run$Capital[length(Sim_LKFN_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_LKFN <- (Sim_LKFN_RSI_Run$close_LKFN[length(Sim_LKFN_RSI_Run$Action)]/Sim_LKFN_RSI_Run$close_LKFN[1]-1)*100
+#LEA
+Returns_RSI_LEA <- (Sim_LEA_RSI_Run$Capital[length(Sim_LEA_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_LEA <- (Sim_LEA_RSI_Run$close_LEA[length(Sim_LEA_RSI_Run$Action)]/Sim_LEA_RSI_Run$close_LEA[1]-1)*100
+#LOPE
+Returns_RSI_LOPE <- (Sim_LOPE_RSI_Run$Capital[length(Sim_LOPE_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_LOPE <- (Sim_LOPE_RSI_Run$close_LOPE[length(Sim_LOPE_RSI_Run$Action)]/Sim_LOPE_RSI_Run$close_LOPE[1]-1)*100
+#IMAX
+Returns_RSI_IMAX <- (Sim_IMAX_RSI_Run$Capital[length(Sim_IMAX_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_IMAX <- (Sim_IMAX_RSI_Run$close_IMAX[length(Sim_IMAX_RSI_Run$Action)]/Sim_IMAX_RSI_Run$close_IMAX[1]-1)*100
+#ATHN
+Returns_RSI_ATHN <- (Sim_ATHN_RSI_Run$Capital[length(Sim_ATHN_RSI_Run$Action)]/InitialCapital-1)*100
+Returns_ATHN <- (Sim_ATHN_RSI_Run$close_ATHN[length(Sim_ATHN_RSI_Run$Action)]/Sim_ATHN_RSI_Run$close_ATHN[1]-1)*100
+
+#Calculating difference variable for RSI.
+NANO_Diff_RSI <- Returns_RSI_NANO - Returns_NANO
+PEZ_Diff_RSI <- Returns_RSI_PEZ - Returns_PEZ
+FE_Diff_RSI <- Returns_RSI_FE - Returns_FE
+TFX_Diff_RSI <- Returns_RSI_TFX - Returns_TFX
+EPM_Diff_RSI <- Returns_RSI_EPM - Returns_EPM
+LKFN_Diff_RSI <- Returns_RSI_LKFN - Returns_LKFN
+LEA_Diff_RSI <- Returns_RSI_LEA - Returns_LEA
+LOPE_Diff_RSI <- Returns_RSI_LOPE - Returns_LOPE
+IMAX_Diff_RSI <- Returns_RSI_IMAX - Returns_IMAX
+ATHN_Diff_RSI <- Returns_RSI_ATHN - Returns_ATHN
+```
+
+```{r}
+Results_RSI_Random <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator",
+  "NANO", as.numeric(Returns_NANO), as.numeric(Returns_RSI_NANO), 
+  "PEZ", as.numeric(Returns_PEZ), as.numeric(Returns_RSI_PEZ),
+  "FE", as.numeric(Returns_FE), as.numeric(Returns_RSI_FE),
+  "TFX", as.numeric(Returns_TFX), as.numeric(Returns_RSI_TFX),
+  "EPM", as.numeric(Returns_EPM), as.numeric(Returns_RSI_EPM),
+  "LKFN", as.numeric(Returns_LKFN), as.numeric(Returns_RSI_LKFN),
+  "LEA", as.numeric(Returns_LEA), as.numeric(Returns_RSI_LEA),
+  "LOPE", as.numeric(Returns_LOPE), as.numeric(Returns_RSI_LOPE),
+  "IMAX", as.numeric(Returns_IMAX), as.numeric(Returns_RSI_IMAX),
+  "ATHN", as.numeric(Returns_ATHN), as.numeric(Returns_RSI_ATHN)
+)
+
+Results_RSI_Random_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator", ~"Difference",
+  "NANO", as.numeric(Returns_NANO), as.numeric(Returns_RSI_NANO), as.numeric(NANO_Diff_RSI),
+  "PEZ", as.numeric(Returns_PEZ), as.numeric(Returns_RSI_PEZ), as.numeric(PEZ_Diff_RSI),
+  "FE", as.numeric(Returns_FE), as.numeric(Returns_RSI_FE), as.numeric(FE_Diff_RSI),
+  "TFX", as.numeric(Returns_TFX), as.numeric(Returns_RSI_TFX), as.numeric(TFX_Diff_RSI),
+  "EPM", as.numeric(Returns_EPM), as.numeric(Returns_RSI_EPM), as.numeric(EPM_Diff_RSI),
+  "LKFN", as.numeric(Returns_LKFN), as.numeric(Returns_RSI_LKFN), as.numeric(LKFN_Diff_RSI),
+  "LEA", as.numeric(Returns_LEA), as.numeric(Returns_RSI_LEA), as.numeric(LEA_Diff_RSI),
+  "LOPE", as.numeric(Returns_LOPE), as.numeric(Returns_RSI_LOPE), as.numeric(LOPE_Diff_RSI),
+  "IMAX", as.numeric(Returns_IMAX), as.numeric(Returns_RSI_IMAX), as.numeric(IMAX_Diff_RSI),
+  "ATHN", as.numeric(Returns_ATHN), as.numeric(Returns_RSI_ATHN), as.numeric(ATHN_Diff_RSI)
+)
+
+Results_RSI_Random_Difference <- Results_RSI_Random_Difference %>% 
+  arrange(Difference)
+
+rownames(Results_RSI_Random) <- c("NANO", "PEZ", "FE", "TFX", "EPM", "LKFN", "LEA", "LOPE", "IMAX", "ATHN")
+```
+
+```{r}
+library(reshape2)
+RSILong_Random <- melt(Results_RSI_Random)
+```
+
+```{r}
+names(RSILong_Random)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=RSILong_Random) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Original RSI Parameters (60/40)")
+```
+
+```{r}
+ggplot(data=Results_RSI_Random_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`), fill = "#228B22") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Original RSI Parameters (60/40)")
+```
+
+# Returns for Random Stocks Using STOCH
+
+```{r}
+Sim_NANO_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_NANO_STOCH, NANO_STOCH, NANO_STOCH$SlowD_NANO, NANO_Price, "close_NANO")
+Sim_PEZ_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_PEZ_STOCH, PEZ_STOCH, PEZ_STOCH$SlowD_PEZ, PEZ_Price, "close_PEZ")
+Sim_FE_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_FE_STOCH, FE_STOCH, FE_STOCH$SlowD_FE, FE_Price, "close_FE")
+Sim_TFX_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_TFX_STOCH, TFX_STOCH, TFX_STOCH$SlowD_TFX, TFX_Price, "close_TFX")
+Sim_EPM_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_EPM_STOCH, EPM_STOCH, EPM_STOCH$SlowD_EPM, EPM_Price, "close_EPM")
+Sim_LKFN_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_LKFN_STOCH, LKFN_STOCH, LKFN_STOCH$SlowD_LKFN, LKFN_Price, "close_LKFN")
+Sim_LEA_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_LEA_STOCH, LEA_STOCH, LEA_STOCH$SlowD_LEA, LEA_Price, "close_LEA")
+Sim_LOPE_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_LOPE_STOCH, LOPE_STOCH, LOPE_STOCH$SlowD_LOPE, LOPE_Price, "close_LOPE")
+Sim_IMAX_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_IMAX_STOCH, IMAX_STOCH, IMAX_STOCH$SlowD_IMAX, IMAX_Price, "close_IMAX")
+Sim_ATHN_STOCH_Blank <- Create_Sim_Dataset_STOCH(Sim_ATHN_STOCH, ATHN_STOCH, ATHN_STOCH$SlowD_ATHN, ATHN_Price, "close_ATHN")
+```
+
+```{r}
+Sim_NANO_STOCH_Run <- Run_Model(Sim_NANO_STOCH_Blank, Sim_NANO_STOCH_Blank$close_NANO)
+Sim_PEZ_STOCH_Run <- Run_Model(Sim_PEZ_STOCH_Blank, Sim_PEZ_STOCH_Blank$close_PEZ)
+Sim_FE_STOCH_Run <- Run_Model(Sim_FE_STOCH_Blank, Sim_FE_STOCH_Blank$close_FE)
+Sim_TFX_STOCH_Run <- Run_Model(Sim_TFX_STOCH_Blank, Sim_TFX_STOCH_Blank$close_TFX)
+Sim_EPM_STOCH_Run <- Run_Model(Sim_EPM_STOCH_Blank, Sim_EPM_STOCH_Blank$close_EPM)
+Sim_LKFN_STOCH_Run <- Run_Model(Sim_LKFN_STOCH_Blank, Sim_LKFN_STOCH_Blank$close_LKFN)
+Sim_LEA_STOCH_Run <- Run_Model(Sim_LEA_STOCH_Blank, Sim_LEA_STOCH_Blank$close_LEA)
+Sim_LOPE_STOCH_Run <- Run_Model(Sim_LOPE_STOCH_Blank, Sim_LOPE_STOCH_Blank$close_LOPE)
+Sim_IMAX_STOCH_Run <- Run_Model(Sim_IMAX_STOCH_Blank, Sim_IMAX_STOCH_Blank$close_IMAX)
+Sim_ATHN_STOCH_Run <- Run_Model(Sim_ATHN_STOCH_Blank, Sim_ATHN_STOCH_Blank$close_ATHN)
+```
+
+Calculate Returns for STOCH:
+```{r}
+#NANO
+Returns_STOCH_NANO <- (Sim_NANO_STOCH_Run$Capital[length(Sim_NANO_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_NANO <- (Sim_NANO_STOCH_Run$close_NANO[length(Sim_NANO_STOCH_Run$Action)]/Sim_NANO_STOCH_Run$close_NANO[1]-1)*100
+#PEZ
+Returns_STOCH_PEZ <- (Sim_PEZ_STOCH_Run$Capital[length(Sim_PEZ_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_PEZ <- (Sim_PEZ_STOCH_Run$close_PEZ[length(Sim_PEZ_STOCH_Run$Action)]/Sim_PEZ_STOCH_Run$close_PEZ[1]-1)*100
+#FE
+Returns_STOCH_FE <- (Sim_FE_STOCH_Run$Capital[length(Sim_FE_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_FE <- (Sim_FE_STOCH_Run$close_FE[length(Sim_FE_STOCH_Run$Action)]/Sim_FE_STOCH_Run$close_FE[1]-1)*100
+#TFX
+Returns_STOCH_TFX <- (Sim_TFX_STOCH_Run$Capital[length(Sim_TFX_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_TFX <- (Sim_TFX_STOCH_Run$close_TFX[length(Sim_TFX_STOCH_Run$Action)]/Sim_TFX_STOCH_Run$close_TFX[1]-1)*100
+#EPM
+Returns_STOCH_EPM <- (Sim_EPM_STOCH_Run$Capital[length(Sim_EPM_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_EPM <- (Sim_EPM_STOCH_Run$close_EPM[length(Sim_EPM_STOCH_Run$Action)]/Sim_EPM_STOCH_Run$close_EPM[1]-1)*100
+#LKFN
+Returns_STOCH_LKFN <- (Sim_LKFN_STOCH_Run$Capital[length(Sim_LKFN_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_LKFN <- (Sim_LKFN_STOCH_Run$close_LKFN[length(Sim_LKFN_STOCH_Run$Action)]/Sim_LKFN_STOCH_Run$close_LKFN[1]-1)*100
+#LEA
+Returns_STOCH_LEA <- (Sim_LEA_STOCH_Run$Capital[length(Sim_LEA_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_LEA <- (Sim_LEA_STOCH_Run$close_LEA[length(Sim_LEA_STOCH_Run$Action)]/Sim_LEA_STOCH_Run$close_LEA[1]-1)*100
+#LOPE
+Returns_STOCH_LOPE <- (Sim_LOPE_STOCH_Run$Capital[length(Sim_LOPE_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_LOPE <- (Sim_LOPE_STOCH_Run$close_LOPE[length(Sim_LOPE_STOCH_Run$Action)]/Sim_LOPE_STOCH_Run$close_LOPE[1]-1)*100
+#IMAX
+Returns_STOCH_IMAX <- (Sim_IMAX_STOCH_Run$Capital[length(Sim_IMAX_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_IMAX <- (Sim_IMAX_STOCH_Run$close_IMAX[length(Sim_IMAX_STOCH_Run$Action)]/Sim_IMAX_STOCH_Run$close_IMAX[1]-1)*100
+#ATHN
+Returns_STOCH_ATHN <- (Sim_ATHN_STOCH_Run$Capital[length(Sim_ATHN_STOCH_Run$Action)]/InitialCapital-1)*100
+Returns_ATHN <- (Sim_ATHN_STOCH_Run$close_ATHN[length(Sim_ATHN_STOCH_Run$Action)]/Sim_ATHN_STOCH_Run$close_ATHN[1]-1)*100
+
+#Calculating difference variable for STOCH.
+NANO_Diff_STOCH <- Returns_STOCH_NANO - Returns_NANO
+PEZ_Diff_STOCH <- Returns_STOCH_PEZ - Returns_PEZ
+FE_Diff_STOCH <- Returns_STOCH_FE - Returns_FE
+TFX_Diff_STOCH <- Returns_STOCH_TFX - Returns_TFX
+EPM_Diff_STOCH <- Returns_STOCH_EPM - Returns_EPM
+LKFN_Diff_STOCH <- Returns_STOCH_LKFN - Returns_LKFN
+LEA_Diff_STOCH <- Returns_STOCH_LEA - Returns_LEA
+LOPE_Diff_STOCH <- Returns_STOCH_LOPE - Returns_LOPE
+IMAX_Diff_STOCH <- Returns_STOCH_IMAX - Returns_IMAX
+ATHN_Diff_STOCH <- Returns_STOCH_ATHN - Returns_ATHN
+```
+
+```{r}
+Results_STOCH_Random <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator",
+  "NANO", as.numeric(Returns_NANO), as.numeric(Returns_STOCH_NANO),
+  "PEZ", as.numeric(Returns_PEZ), as.numeric(Returns_STOCH_PEZ),
+  "FE", as.numeric(Returns_FE), as.numeric(Returns_STOCH_FE),
+  "TFX", as.numeric(Returns_TFX), as.numeric(Returns_STOCH_TFX),
+  "EPM", as.numeric(Returns_EPM), as.numeric(Returns_STOCH_EPM),
+  "LKFN", as.numeric(Returns_LKFN), as.numeric(Returns_STOCH_LKFN),
+  "LEA", as.numeric(Returns_LEA), as.numeric(Returns_STOCH_LEA),
+  "LOPE", as.numeric(Returns_LOPE), as.numeric(Returns_STOCH_LOPE),
+  "IMAX", as.numeric(Returns_IMAX), as.numeric(Returns_STOCH_IMAX),
+  "ATHN", as.numeric(Returns_ATHN), as.numeric(Returns_STOCH_ATHN)
+)
+
+Results_STOCH_Random_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator", ~"Difference",
+  "NANO", as.numeric(Returns_NANO), as.numeric(Returns_STOCH_NANO), as.numeric(NANO_Diff_STOCH),
+  "PEZ", as.numeric(Returns_PEZ), as.numeric(Returns_STOCH_PEZ), as.numeric(PEZ_Diff_STOCH),
+  "FE", as.numeric(Returns_FE), as.numeric(Returns_STOCH_FE), as.numeric(FE_Diff_STOCH),
+  "TFX", as.numeric(Returns_TFX), as.numeric(Returns_STOCH_TFX), as.numeric(TFX_Diff_STOCH),
+  "EPM", as.numeric(Returns_EPM), as.numeric(Returns_STOCH_EPM), as.numeric(EPM_Diff_STOCH),
+  "LKFN", as.numeric(Returns_LKFN), as.numeric(Returns_STOCH_LKFN), as.numeric(LKFN_Diff_STOCH),
+  "LEA", as.numeric(Returns_LEA), as.numeric(Returns_STOCH_LEA), as.numeric(LEA_Diff_STOCH),
+  "LOPE", as.numeric(Returns_LOPE), as.numeric(Returns_STOCH_LOPE), as.numeric(LOPE_Diff_STOCH),
+  "IMAX", as.numeric(Returns_IMAX), as.numeric(Returns_STOCH_IMAX), as.numeric(IMAX_Diff_STOCH),
+  "ATHN", as.numeric(Returns_ATHN), as.numeric(Returns_STOCH_ATHN), as.numeric(ATHN_Diff_STOCH)
+)
+
+Results_STOCH_Random_Difference <- Results_STOCH_Random_Difference %>% 
+  arrange(Difference)
+
+rownames(Results_STOCH_Random) <- c("NANO", "PEZ", "FE", "TFX", "EPM", "LKFN", "LEA", "LOPE", "IMAX", "ATHN")
+```
+
+```{r}
+library(reshape2)
+STOCHLong_Random <- melt(Results_STOCH_Random)
+```
+
+```{r}
+names(STOCHLong_Random)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=STOCHLong_Random) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Original STOCH Parameters (70/30)")
+```
+
+```{r}
+ggplot(data=Results_STOCH_Random_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`), fill = "#FFA500") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Original STOCH Parameters (70/30)")
+```
+
+# Returns of Stocks in Portfolios with Optimized Parameters for RSI
+
+## Fidelity
+
+```{r}
+RSISellLevel <- 63
+RSIBuyLevel <- 49
+```
+
+```{r}
+Sim_CMCSA_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_CMCSA_RSI, CMCSA_RSI, CMCSA_RSI$RSI_CMCSA, CMCSA_Price, "close_CMCSA")
+Sim_CVX_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_CVX_RSI, CVX_RSI, CVX_RSI$RSI_CVX, CVX_Price, "close_CVX")
+Sim_GE_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_GE_RSI, GE_RSI, GE_RSI$RSI_GE, GE_Price, "close_GE")
+Sim_JNJ_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_JNJ_RSI, JNJ_RSI, JNJ_RSI$RSI_JNJ, JNJ_Price, "close_JNJ")
+Sim_JPM_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_JPM_RSI, JPM_RSI, JPM_RSI$RSI_JPM, JPM_Price, "close_JPM")
+Sim_MRK_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_MRK_RSI, MRK_RSI, MRK_RSI$RSI_MRK, MRK_Price, "close_MRK")
+Sim_PAYX_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_PAYX_RSI, PAYX_RSI, PAYX_RSI$RSI_PAYX, PAYX_Price, "close_PAYX")
+Sim_PFE_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_PFE_RSI, PFE_RSI, PFE_RSI$RSI_PFE, PFE_Price, "close_PFE")
+Sim_RDS.A_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_RDS.A_RSI, RDS.A_RSI, RDS.A_RSI$RSI_RDS.A, RDS.A_Price, "close_RDS.A")
+Sim_WFC_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_WFC_RSI, WFC_RSI, WFC_RSI$RSI_WFC, WFC_Price, "close_WFC")
+```
+
+```{r}
+Sim_CMCSA_RSI_Run_Opt <- Run_Model(Sim_CMCSA_RSI_Blank_Opt, Sim_CMCSA_RSI_Blank_Opt$close_CMCSA)
+Sim_CVX_RSI_Run_Opt <- Run_Model(Sim_CVX_RSI_Blank_Opt, Sim_CVX_RSI_Blank_Opt$close_CVX)
+Sim_GE_RSI_Run_Opt <- Run_Model(Sim_GE_RSI_Blank_Opt, Sim_GE_RSI_Blank_Opt$close_GE)
+Sim_JNJ_RSI_Run_Opt <- Run_Model(Sim_JNJ_RSI_Blank_Opt, Sim_JNJ_RSI_Blank_Opt$close_JNJ)
+Sim_JPM_RSI_Run_Opt <- Run_Model(Sim_JPM_RSI_Blank_Opt, Sim_JPM_RSI_Blank_Opt$close_JPM)
+Sim_MRK_RSI_Run_Opt <- Run_Model(Sim_MRK_RSI_Blank_Opt, Sim_MRK_RSI_Blank_Opt$close_MRK)
+Sim_PAYX_RSI_Run_Opt <- Run_Model(Sim_PAYX_RSI_Blank_Opt, Sim_PAYX_RSI_Blank_Opt$close_PAYX)
+Sim_PFE_RSI_Run_Opt <- Run_Model(Sim_PFE_RSI_Blank_Opt, Sim_PFE_RSI_Blank_Opt$close_PFE)
+Sim_RDS.A_RSI_Run_Opt <- Run_Model(Sim_RDS.A_RSI_Blank_Opt, Sim_RDS.A_RSI_Blank_Opt$close_RDS.A)
+Sim_WFC_RSI_Run_Opt <- Run_Model(Sim_WFC_RSI_Blank_Opt, Sim_WFC_RSI_Blank_Opt$close_WFC)
+```
+
+Calculate Returns for RSI:
+```{r}
+#CMCSA
+Returns_Opt_RSI_CMCSA <- (Sim_CMCSA_RSI_Run_Opt$Capital[length(Sim_CMCSA_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_CMCSA <- (Sim_CMCSA_RSI_Run_Opt$close_CMCSA[length(Sim_CMCSA_RSI_Run_Opt$Action)]/Sim_CMCSA_RSI_Run_Opt$close_CMCSA[1]-1)*100
+#CVX
+Returns_Opt_RSI_CVX <- (Sim_CVX_RSI_Run_Opt$Capital[length(Sim_CVX_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_CVX <- (Sim_CVX_RSI_Run_Opt$close_CVX[length(Sim_CVX_RSI_Run_Opt$Action)]/Sim_CVX_RSI_Run_Opt$close_CVX[1]-1)*100
+#GE
+Returns_Opt_RSI_GE <- (Sim_GE_RSI_Run_Opt$Capital[length(Sim_GE_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_GE <- (Sim_GE_RSI_Run_Opt$close_GE[length(Sim_GE_RSI_Run_Opt$Action)]/Sim_GE_RSI_Run_Opt$close_GE[1]-1)*100
+#JNJ
+Returns_Opt_RSI_JNJ <- (Sim_JNJ_RSI_Run_Opt$Capital[length(Sim_JNJ_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_JNJ <- (Sim_JNJ_RSI_Run_Opt$close_JNJ[length(Sim_JNJ_RSI_Run_Opt$Action)]/Sim_JNJ_RSI_Run_Opt$close_JNJ[1]-1)*100
+#JPM
+Returns_Opt_RSI_JPM <- (Sim_JPM_RSI_Run_Opt$Capital[length(Sim_JPM_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_JPM <- (Sim_JPM_RSI_Run_Opt$close_JPM[length(Sim_JPM_RSI_Run_Opt$Action)]/Sim_JPM_RSI_Run_Opt$close_JPM[1]-1)*100
+#MRK
+Returns_Opt_RSI_MRK <- (Sim_MRK_RSI_Run_Opt$Capital[length(Sim_MRK_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_MRK <- (Sim_MRK_RSI_Run_Opt$close_MRK[length(Sim_MRK_RSI_Run_Opt$Action)]/Sim_MRK_RSI_Run_Opt$close_MRK[1]-1)*100
+#PAYX
+Returns_Opt_RSI_PAYX <- (Sim_PAYX_RSI_Run_Opt$Capital[length(Sim_PAYX_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_PAYX <- (Sim_PAYX_RSI_Run_Opt$close_PAYX[length(Sim_PAYX_RSI_Run_Opt$Action)]/Sim_PAYX_RSI_Run_Opt$close_PAYX[1]-1)*100
+#PFE
+Returns_Opt_RSI_PFE <- (Sim_PFE_RSI_Run_Opt$Capital[length(Sim_PFE_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_PFE <- (Sim_PFE_RSI_Run_Opt$close_PFE[length(Sim_PFE_RSI_Run_Opt$Action)]/Sim_PFE_RSI_Run_Opt$close_PFE[1]-1)*100
+#RDS.A
+Returns_Opt_RSI_RDS.A <- (Sim_RDS.A_RSI_Run_Opt$Capital[length(Sim_RDS.A_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_RDS.A <- (Sim_RDS.A_RSI_Run_Opt$close_RDS.A[length(Sim_RDS.A_RSI_Run_Opt$Action)]/Sim_RDS.A_RSI_Run_Opt$close_RDS.A[1]-1)*100
+#WFC
+Returns_Opt_RSI_WFC <- (Sim_WFC_RSI_Run_Opt$Capital[length(Sim_WFC_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_WFC <- (Sim_WFC_RSI_Run_Opt$close_WFC[length(Sim_WFC_RSI_Run_Opt$Action)]/Sim_WFC_RSI_Run_Opt$close_WFC[1]-1)*100
+
+#Calculating difference variable for RSI.
+CMCSA_Diff_Opt_RSI <- Returns_Opt_RSI_CMCSA - Returns_Opt_CMCSA
+CVX_Diff_Opt_RSI <- Returns_Opt_RSI_CVX - Returns_Opt_CVX
+GE_Diff_Opt_RSI <- Returns_Opt_RSI_GE - Returns_Opt_GE
+JNJ_Diff_Opt_RSI <- Returns_Opt_RSI_JNJ - Returns_Opt_JNJ
+JPM_Diff_Opt_RSI <- Returns_Opt_RSI_JPM - Returns_Opt_JPM
+MRK_Diff_Opt_RSI <- Returns_Opt_RSI_MRK - Returns_Opt_MRK
+PAYX_Diff_Opt_RSI <- Returns_Opt_RSI_PAYX - Returns_Opt_PAYX
+PFE_Diff_Opt_RSI <- Returns_Opt_RSI_PFE - Returns_Opt_PFE
+RDS.A_Diff_Opt_RSI <- Returns_Opt_RSI_RDS.A - Returns_Opt_RDS.A
+WFC_Diff_Opt_RSI <- Returns_Opt_RSI_WFC - Returns_Opt_WFC
+```
+
+```{r}
+Results_Opt_RSI_Fidelity <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator",
+  "CMCSA", as.numeric(Returns_Opt_CMCSA), as.numeric(Returns_Opt_RSI_CMCSA), 
+  "CVX", as.numeric(Returns_Opt_CVX), as.numeric(Returns_Opt_RSI_CVX), 
+  "GE", as.numeric(Returns_Opt_GE), as.numeric(Returns_Opt_RSI_GE), 
+  "JNJ", as.numeric(Returns_Opt_JNJ), as.numeric(Returns_Opt_RSI_JNJ), 
+  "JPM", as.numeric(Returns_Opt_JPM), as.numeric(Returns_Opt_RSI_JPM), 
+  "MRK", as.numeric(Returns_Opt_MRK), as.numeric(Returns_Opt_RSI_MRK), 
+  "PAYX", as.numeric(Returns_Opt_PAYX), as.numeric(Returns_Opt_RSI_PAYX), 
+  "PFE", as.numeric(Returns_Opt_PFE), as.numeric(Returns_Opt_RSI_PFE), 
+  "RDS.A", as.numeric(Returns_Opt_RDS.A), as.numeric(Returns_Opt_RSI_RDS.A), 
+  "WFC", as.numeric(Returns_Opt_WFC), as.numeric(Returns_Opt_RSI_WFC) 
+)
+  
+Results_Opt_RSI_Fidelity_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator", ~"Difference",
+  "CMCSA", as.numeric(Returns_Opt_CMCSA), as.numeric(Returns_Opt_RSI_CMCSA), as.numeric(CMCSA_Diff_Opt_RSI),
+  "CVX", as.numeric(Returns_Opt_CVX), as.numeric(Returns_Opt_RSI_CVX), as.numeric(CVX_Diff_Opt_RSI),
+  "GE", as.numeric(Returns_Opt_GE), as.numeric(Returns_Opt_RSI_GE), as.numeric(GE_Diff_Opt_RSI),
+  "JNJ", as.numeric(Returns_Opt_JNJ), as.numeric(Returns_Opt_RSI_JNJ), as.numeric(JNJ_Diff_Opt_RSI),
+  "JPM", as.numeric(Returns_Opt_JPM), as.numeric(Returns_Opt_RSI_JPM), as.numeric(JPM_Diff_Opt_RSI),
+  "MRK", as.numeric(Returns_Opt_MRK), as.numeric(Returns_Opt_RSI_MRK), as.numeric(MRK_Diff_Opt_RSI),
+  "PAYX", as.numeric(Returns_Opt_PAYX), as.numeric(Returns_Opt_RSI_PAYX), as.numeric(PAYX_Diff_Opt_RSI),
+  "PFE", as.numeric(Returns_Opt_PFE), as.numeric(Returns_Opt_RSI_PFE), as.numeric(PFE_Diff_Opt_RSI),
+  "RDS.A", as.numeric(Returns_Opt_RDS.A), as.numeric(Returns_Opt_RSI_RDS.A), as.numeric(RDS.A_Diff_Opt_RSI),
+  "WFC", as.numeric(Returns_Opt_WFC), as.numeric(Returns_Opt_RSI_WFC), as.numeric(WFC_Diff_Opt_RSI)
+)
+
+Results_Opt_RSI_Fidelity_Difference <- Results_Opt_RSI_Fidelity_Difference %>% 
+  arrange((Difference))
+
+rownames(Results_Opt_RSI_Fidelity) <- c("CMCSA", "CVX", "GE", "JNJ", "JPM", "MRK", "PAYX", "PFE", "RDS.A", "WFC")
+```
+
+```{r}
+library(reshape2)
+RSILong_Fidelity_Opt <- melt(Results_Opt_RSI_Fidelity)
+```
+
+```{r}
+names(RSILong_Fidelity_Opt)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=RSILong_Fidelity_Opt) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Optimized RSI Parameters (63/49)")
+```
+
+```{r}
+ggplot(data=Results_Opt_RSI_Fidelity_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`),  fill="#228B22") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Optimized RSI Parameters (63/49)")
+```
+
+```{r}
+Mean_Fidelity_RSI_Return <- (mean(Results_RSI_Fidelity_Difference$`Difference`))
+Mean_Fidelity_Opt_RSI_Return <- (mean(Results_Opt_RSI_Fidelity_Difference$`Difference`))
+
+Mean_Fidelity_RSI_Return
+Mean_Fidelity_Opt_RSI_Difference
+```
+
+## Article
+
+```{r}
+RSIBuyLevel <- 34
+RSISellLevel <- 79
+```
+
+```{r}
+Sim_CSCO_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_CSCO_RSI, CSCO_RSI, CSCO_RSI$RSI_CSCO, CSCO_Price, "close_CSCO")
+Sim_CVX_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_CVX_RSI, CVX_RSI, CVX_RSI$RSI_CVX, CVX_Price, "close_CVX")
+Sim_GE_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_GE_RSI, GE_RSI, GE_RSI$RSI_GE, GE_Price, "close_GE")
+Sim_IBM_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_IBM_RSI, IBM_RSI, IBM_RSI$RSI_IBM, IBM_Price, "close_IBM")
+Sim_MMM_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_MMM_RSI, MMM_RSI, MMM_RSI$RSI_MMM, MMM_Price, "close_MMM")
+Sim_MSFT_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_MSFT_RSI, MSFT_RSI, MSFT_RSI$RSI_MSFT, MSFT_Price, "close_MSFT")
+Sim_TRV_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_TRV_RSI, TRV_RSI, TRV_RSI$RSI_TRV, TRV_Price, "close_TRV")
+Sim_PFE_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_PFE_RSI, PFE_RSI, PFE_RSI$RSI_PFE, PFE_Price, "close_PFE")
+Sim_UNH_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_UNH_RSI, UNH_RSI, UNH_RSI$RSI_UNH, UNH_Price, "close_UNH")
+Sim_UTX_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_UTX_RSI, UTX_RSI, UTX_RSI$RSI_UTX, UTX_Price, "close_UTX")
+```
+
+```{r}
+Sim_CSCO_RSI_Run_Opt <- Run_Model(Sim_CSCO_RSI_Blank_Opt, Sim_CSCO_RSI_Blank_Opt$close_CSCO)
+Sim_CVX_RSI_Run_Opt <- Run_Model(Sim_CVX_RSI_Blank_Opt, Sim_CVX_RSI_Blank_Opt$close_CVX)
+Sim_GE_RSI_Run_Opt <- Run_Model(Sim_GE_RSI_Blank_Opt, Sim_GE_RSI_Blank_Opt$close_GE)
+Sim_IBM_RSI_Run_Opt <- Run_Model(Sim_IBM_RSI_Blank_Opt, Sim_IBM_RSI_Blank_Opt$close_IBM)
+Sim_MMM_RSI_Run_Opt <- Run_Model(Sim_MMM_RSI_Blank_Opt, Sim_MMM_RSI_Blank_Opt$close_MMM)
+Sim_MSFT_RSI_Run_Opt <- Run_Model(Sim_MSFT_RSI_Blank_Opt, Sim_MSFT_RSI_Blank_Opt$close_MSFT)
+Sim_TRV_RSI_Run_Opt <- Run_Model(Sim_TRV_RSI_Blank_Opt, Sim_TRV_RSI_Blank_Opt$close_TRV)
+Sim_PFE_RSI_Run_Opt <- Run_Model(Sim_PFE_RSI_Blank_Opt, Sim_PFE_RSI_Blank_Opt$close_PFE)
+Sim_UNH_RSI_Run_Opt <- Run_Model(Sim_UNH_RSI_Blank_Opt, Sim_UNH_RSI_Blank_Opt$close_UNH)
+Sim_UTX_RSI_Run_Opt <- Run_Model(Sim_UTX_RSI_Blank_Opt, Sim_UTX_RSI_Blank_Opt$close_UTX)
+```
+
+Calculate Returns for RSI:
+```{r}
+#CSCO
+Returns_Opt_RSI_CSCO <- (Sim_CSCO_RSI_Run_Opt$Capital[length(Sim_CSCO_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_CSCO <- (Sim_CSCO_RSI_Run_Opt$close_CSCO[length(Sim_CSCO_RSI_Run_Opt$Action)]/Sim_CSCO_RSI_Run_Opt$close_CSCO[1]-1)*100
+#CVX
+Returns_Opt_RSI_CVX <- (Sim_CVX_RSI_Run_Opt$Capital[length(Sim_CVX_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_CVX <- (Sim_CVX_RSI_Run_Opt$close_CVX[length(Sim_CVX_RSI_Run_Opt$Action)]/Sim_CVX_RSI_Run_Opt$close_CVX[1]-1)*100
+#GE
+Returns_Opt_RSI_GE <- (Sim_GE_RSI_Run_Opt$Capital[length(Sim_GE_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_GE <- (Sim_GE_RSI_Run_Opt$close_GE[length(Sim_GE_RSI_Run_Opt$Action)]/Sim_GE_RSI_Run_Opt$close_GE[1]-1)*100
+#IBM
+Returns_Opt_RSI_IBM <- (Sim_IBM_RSI_Run_Opt$Capital[length(Sim_IBM_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_IBM <- (Sim_IBM_RSI_Run_Opt$close_IBM[length(Sim_IBM_RSI_Run_Opt$Action)]/Sim_IBM_RSI_Run_Opt$close_IBM[1]-1)*100
+#MMM
+Returns_Opt_RSI_MMM <- (Sim_MMM_RSI_Run_Opt$Capital[length(Sim_MMM_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_MMM <- (Sim_MMM_RSI_Run_Opt$close_MMM[length(Sim_MMM_RSI_Run_Opt$Action)]/Sim_MMM_RSI_Run_Opt$close_MMM[1]-1)*100
+#MSFT
+Returns_Opt_RSI_MSFT <- (Sim_MSFT_RSI_Run_Opt$Capital[length(Sim_MSFT_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_MSFT <- (Sim_MSFT_RSI_Run_Opt$close_MSFT[length(Sim_MSFT_RSI_Run_Opt$Action)]/Sim_MSFT_RSI_Run_Opt$close_MSFT[1]-1)*100
+#TRV
+Returns_Opt_RSI_TRV <- (Sim_TRV_RSI_Run_Opt$Capital[length(Sim_TRV_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_TRV <- (Sim_TRV_RSI_Run_Opt$close_TRV[length(Sim_TRV_RSI_Run_Opt$Action)]/Sim_TRV_RSI_Run_Opt$close_TRV[1]-1)*100
+#PFE
+Returns_Opt_RSI_PFE <- (Sim_PFE_RSI_Run_Opt$Capital[length(Sim_PFE_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_PFE <- (Sim_PFE_RSI_Run_Opt$close_PFE[length(Sim_PFE_RSI_Run_Opt$Action)]/Sim_PFE_RSI_Run_Opt$close_PFE[1]-1)*100
+#UNH
+Returns_Opt_RSI_UNH <- (Sim_UNH_RSI_Run_Opt$Capital[length(Sim_UNH_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_UNH <- (Sim_UNH_RSI_Run_Opt$close_UNH[length(Sim_UNH_RSI_Run_Opt$Action)]/Sim_UNH_RSI_Run_Opt$close_UNH[1]-1)*100
+#UTX
+Returns_Opt_RSI_UTX <- (Sim_UTX_RSI_Run_Opt$Capital[length(Sim_UTX_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_UTX <- (Sim_UTX_RSI_Run_Opt$close_UTX[length(Sim_UTX_RSI_Run_Opt$Action)]/Sim_UTX_RSI_Run_Opt$close_UTX[1]-1)*100
+
+#Calculating difference variable for RSI.
+CSCO_Diff_Opt_RSI <- Returns_Opt_RSI_CSCO - Returns_CSCO
+CVX_Diff_Opt_RSI <- Returns_Opt_RSI_CVX - Returns_CVX
+GE_Diff_Opt_RSI <- Returns_Opt_RSI_GE - Returns_GE
+IBM_Diff_Opt_RSI <- Returns_Opt_RSI_IBM - Returns_IBM
+MMM_Diff_Opt_RSI <- Returns_Opt_RSI_MMM - Returns_MMM
+MSFT_Diff_Opt_RSI <- Returns_Opt_RSI_MSFT - Returns_MSFT
+TRV_Diff_Opt_RSI <- Returns_Opt_RSI_TRV - Returns_TRV
+PFE_Diff_Opt_RSI <- Returns_Opt_RSI_PFE - Returns_PFE
+UNH_Diff_Opt_RSI <- Returns_Opt_RSI_UNH - Returns_UNH
+UTX_Diff_Opt_RSI <- Returns_Opt_RSI_UTX - Returns_UTX
+```
+
+```{r}
+Results_Opt_RSI_Article <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator",
+  "CSCO", as.numeric(Returns_CSCO), as.numeric(Returns_Opt_RSI_CSCO), 
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_Opt_RSI_CVX), 
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_Opt_RSI_GE), 
+  "IBM", as.numeric(Returns_IBM), as.numeric(Returns_Opt_RSI_IBM), 
+  "MMM", as.numeric(Returns_MMM), as.numeric(Returns_Opt_RSI_MMM), 
+  "MSFT", as.numeric(Returns_MSFT), as.numeric(Returns_Opt_RSI_MSFT), 
+  "TRV", as.numeric(Returns_TRV), as.numeric(Returns_Opt_RSI_TRV), 
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_Opt_RSI_PFE), 
+  "UNH", as.numeric(Returns_UNH), as.numeric(Returns_Opt_RSI_UNH), 
+  "UTX", as.numeric(Returns_UTX), as.numeric(Returns_Opt_RSI_UTX) 
+)
+  
+Results_Opt_RSI_Article_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator", ~"Difference",
+  "CSCO", as.numeric(Returns_CSCO), as.numeric(Returns_Opt_RSI_CSCO), as.numeric(CSCO_Diff_Opt_RSI),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_Opt_RSI_CVX), as.numeric(CVX_Diff_Opt_RSI),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_Opt_RSI_GE), as.numeric(GE_Diff_Opt_RSI),
+  "IBM", as.numeric(Returns_IBM), as.numeric(Returns_Opt_RSI_IBM), as.numeric(IBM_Diff_Opt_RSI),
+  "MMM", as.numeric(Returns_MMM), as.numeric(Returns_Opt_RSI_MMM), as.numeric(MMM_Diff_Opt_RSI),
+  "MSFT", as.numeric(Returns_MSFT), as.numeric(Returns_Opt_RSI_MSFT), as.numeric(MSFT_Diff_Opt_RSI),
+  "TRV", as.numeric(Returns_TRV), as.numeric(Returns_Opt_RSI_TRV), as.numeric(TRV_Diff_Opt_RSI),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_Opt_RSI_PFE), as.numeric(PFE_Diff_Opt_RSI),
+  "UNH", as.numeric(Returns_UNH), as.numeric(Returns_Opt_RSI_UNH), as.numeric(UNH_Diff_Opt_RSI),
+  "UTX", as.numeric(Returns_UTX), as.numeric(Returns_Opt_RSI_UTX), as.numeric(UTX_Diff_Opt_RSI)
+)
+
+Results_Opt_RSI_Article_Difference <- Results_Opt_RSI_Article_Difference %>% 
+  arrange((Difference))
+
+rownames(Results_Opt_RSI_Article) <- c("CSCO", "CVX", "GE", "IBM", "MMM", "MSFT", "TRV", "PFE", "UNH", "UTX")
+```
+
+```{r}
+library(reshape2)
+RSILong_Article_Opt <- melt(Results_Opt_RSI_Article)
+```
+
+```{r}
+names(RSILong_Article_Opt)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=RSILong_Article_Opt) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Optimized RSI Parameters (79/34)")
+```
+
+```{r}
+ggplot(data=Results_Opt_RSI_Article_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`),  fill="#228B22") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Optimized RSI Parameters (79/34)")
+```
+
+```{r}
+Mean_Article_RSI_Difference <- (mean(Results_RSI_Article_Difference$`Difference`))
+Mean_Article_Opt_RSI_Difference <- (mean(Results_Opt_RSI_Article_Difference$`Difference`))
+
+Mean_Article_RSI_Difference
+Mean_Article_Opt_RSI_Difference
+```
+
+## Random
+
+```{r}
+RSIBuyLevel <- 37
+RSISellLevel <- 89
+```
+
+```{r}
+Sim_NANO_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_NANO_RSI, NANO_RSI, NANO_RSI$RSI_NANO, NANO_Price, "close_NANO")
+Sim_PEZ_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_PEZ_RSI, PEZ_RSI, PEZ_RSI$RSI_PEZ, PEZ_Price, "close_PEZ")
+Sim_FE_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_FE_RSI, FE_RSI, FE_RSI$RSI_FE, FE_Price, "close_FE")
+Sim_TFX_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_TFX_RSI, TFX_RSI, TFX_RSI$RSI_TFX, TFX_Price, "close_TFX")
+Sim_EPM_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_EPM_RSI, EPM_RSI, EPM_RSI$RSI_EPM, EPM_Price, "close_EPM")
+Sim_LKFN_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_LKFN_RSI, LKFN_RSI, LKFN_RSI$RSI_LKFN, LKFN_Price, "close_LKFN")
+Sim_LEA_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_LEA_RSI, LEA_RSI, LEA_RSI$RSI_LEA, LEA_Price, "close_LEA")
+Sim_LOPE_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_LOPE_RSI, LOPE_RSI, LOPE_RSI$RSI_LOPE, LOPE_Price, "close_LOPE")
+Sim_IMAX_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_IMAX_RSI, IMAX_RSI, IMAX_RSI$RSI_IMAX, IMAX_Price, "close_IMAX")
+Sim_ATHN_RSI_Blank_Opt <- Create_Sim_Dataset_RSI(Sim_ATHN_RSI, ATHN_RSI, ATHN_RSI$RSI_ATHN, ATHN_Price, "close_ATHN")
+```
+
+```{r}
+Sim_NANO_RSI_Run_Opt <- Run_Model(Sim_NANO_RSI_Blank_Opt, Sim_NANO_RSI_Blank_Opt$close_NANO)
+Sim_PEZ_RSI_Run_Opt <- Run_Model(Sim_PEZ_RSI_Blank_Opt, Sim_PEZ_RSI_Blank_Opt$close_PEZ)
+Sim_FE_RSI_Run_Opt <- Run_Model(Sim_FE_RSI_Blank_Opt, Sim_FE_RSI_Blank_Opt$close_FE)
+Sim_TFX_RSI_Run_Opt <- Run_Model(Sim_TFX_RSI_Blank_Opt, Sim_TFX_RSI_Blank_Opt$close_TFX)
+Sim_EPM_RSI_Run_Opt <- Run_Model(Sim_EPM_RSI_Blank_Opt, Sim_EPM_RSI_Blank_Opt$close_EPM)
+Sim_LKFN_RSI_Run_Opt <- Run_Model(Sim_LKFN_RSI_Blank_Opt, Sim_LKFN_RSI_Blank_Opt$close_LKFN)
+Sim_LEA_RSI_Run_Opt <- Run_Model(Sim_LEA_RSI_Blank_Opt, Sim_LEA_RSI_Blank_Opt$close_LEA)
+Sim_LOPE_RSI_Run_Opt <- Run_Model(Sim_LOPE_RSI_Blank_Opt, Sim_LOPE_RSI_Blank_Opt$close_LOPE)
+Sim_IMAX_RSI_Run_Opt <- Run_Model(Sim_IMAX_RSI_Blank_Opt, Sim_IMAX_RSI_Blank_Opt$close_IMAX)
+Sim_ATHN_RSI_Run_Opt <- Run_Model(Sim_ATHN_RSI_Blank_Opt, Sim_ATHN_RSI_Blank_Opt$close_ATHN)
+```
+
+Calculate Returns for RSI:
+```{r}
+#NANO
+Returns_Opt_RSI_NANO <- (Sim_NANO_RSI_Run_Opt$Capital[length(Sim_NANO_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_NANO <- (Sim_NANO_RSI_Run_Opt$close_NANO[length(Sim_NANO_RSI_Run_Opt$Action)]/Sim_NANO_RSI_Run_Opt$close_NANO[1]-1)*100
+#PEZ
+Returns_Opt_RSI_PEZ <- (Sim_PEZ_RSI_Run_Opt$Capital[length(Sim_PEZ_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_PEZ <- (Sim_PEZ_RSI_Run_Opt$close_PEZ[length(Sim_PEZ_RSI_Run_Opt$Action)]/Sim_PEZ_RSI_Run_Opt$close_PEZ[1]-1)*100
+#FE
+Returns_Opt_RSI_FE <- (Sim_FE_RSI_Run_Opt$Capital[length(Sim_FE_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_FE <- (Sim_FE_RSI_Run_Opt$close_FE[length(Sim_FE_RSI_Run_Opt$Action)]/Sim_FE_RSI_Run_Opt$close_FE[1]-1)*100
+#TFX
+Returns_Opt_RSI_TFX <- (Sim_TFX_RSI_Run_Opt$Capital[length(Sim_TFX_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_TFX <- (Sim_TFX_RSI_Run_Opt$close_TFX[length(Sim_TFX_RSI_Run_Opt$Action)]/Sim_TFX_RSI_Run_Opt$close_TFX[1]-1)*100
+#EPM
+Returns_Opt_RSI_EPM <- (Sim_EPM_RSI_Run_Opt$Capital[length(Sim_EPM_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_EPM <- (Sim_EPM_RSI_Run_Opt$close_EPM[length(Sim_EPM_RSI_Run_Opt$Action)]/Sim_EPM_RSI_Run_Opt$close_EPM[1]-1)*100
+#LKFN
+Returns_Opt_RSI_LKFN <- (Sim_LKFN_RSI_Run_Opt$Capital[length(Sim_LKFN_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_LKFN <- (Sim_LKFN_RSI_Run_Opt$close_LKFN[length(Sim_LKFN_RSI_Run_Opt$Action)]/Sim_LKFN_RSI_Run_Opt$close_LKFN[1]-1)*100
+#LEA
+Returns_Opt_RSI_LEA <- (Sim_LEA_RSI_Run_Opt$Capital[length(Sim_LEA_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_LEA <- (Sim_LEA_RSI_Run_Opt$close_LEA[length(Sim_LEA_RSI_Run_Opt$Action)]/Sim_LEA_RSI_Run_Opt$close_LEA[1]-1)*100
+#LOPE
+Returns_Opt_RSI_LOPE <- (Sim_LOPE_RSI_Run_Opt$Capital[length(Sim_LOPE_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_LOPE <- (Sim_LOPE_RSI_Run_Opt$close_LOPE[length(Sim_LOPE_RSI_Run_Opt$Action)]/Sim_LOPE_RSI_Run_Opt$close_LOPE[1]-1)*100
+#IMAX
+Returns_Opt_RSI_IMAX <- (Sim_IMAX_RSI_Run_Opt$Capital[length(Sim_IMAX_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_IMAX <- (Sim_IMAX_RSI_Run_Opt$close_IMAX[length(Sim_IMAX_RSI_Run_Opt$Action)]/Sim_IMAX_RSI_Run_Opt$close_IMAX[1]-1)*100
+#ATHN
+Returns_Opt_RSI_ATHN <- (Sim_ATHN_RSI_Run_Opt$Capital[length(Sim_ATHN_RSI_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_ATHN <- (Sim_ATHN_RSI_Run_Opt$close_ATHN[length(Sim_ATHN_RSI_Run_Opt$Action)]/Sim_ATHN_RSI_Run_Opt$close_ATHN[1]-1)*100
+
+#Calculating difference variable for RSI.
+NANO_Diff_Opt_RSI <- Returns_Opt_RSI_NANO - Returns_NANO
+PEZ_Diff_Opt_RSI <- Returns_Opt_RSI_PEZ - Returns_PEZ
+FE_Diff_Opt_RSI <- Returns_Opt_RSI_FE - Returns_FE
+TFX_Diff_Opt_RSI <- Returns_Opt_RSI_TFX - Returns_TFX
+EPM_Diff_Opt_RSI <- Returns_Opt_RSI_EPM - Returns_EPM
+LKFN_Diff_Opt_RSI <- Returns_Opt_RSI_LKFN - Returns_LKFN
+LEA_Diff_Opt_RSI <- Returns_Opt_RSI_LEA - Returns_LEA
+LOPE_Diff_Opt_RSI <- Returns_Opt_RSI_LOPE - Returns_LOPE
+IMAX_Diff_Opt_RSI <- Returns_Opt_RSI_IMAX - Returns_IMAX
+ATHN_Diff_Opt_RSI <- Returns_Opt_RSI_ATHN - Returns_ATHN
+```
+
+```{r}
+Results_Opt_RSI_Random <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator",
+  "NANO", as.numeric(Returns_NANO), as.numeric(Returns_Opt_RSI_NANO), 
+  "PEZ", as.numeric(Returns_PEZ), as.numeric(Returns_Opt_RSI_PEZ),
+  "FE", as.numeric(Returns_FE), as.numeric(Returns_Opt_RSI_FE),
+  "TFX", as.numeric(Returns_TFX), as.numeric(Returns_Opt_RSI_TFX),
+  "EPM", as.numeric(Returns_EPM), as.numeric(Returns_Opt_RSI_EPM),
+  "LKFN", as.numeric(Returns_LKFN), as.numeric(Returns_Opt_RSI_LKFN),
+  "LEA", as.numeric(Returns_LEA), as.numeric(Returns_Opt_RSI_LEA),
+  "LOPE", as.numeric(Returns_LOPE), as.numeric(Returns_Opt_RSI_LOPE),
+  "IMAX", as.numeric(Returns_IMAX), as.numeric(Returns_Opt_RSI_IMAX),
+  "ATHN", as.numeric(Returns_ATHN), as.numeric(Returns_Opt_RSI_ATHN)
+)
+
+Results_Opt_RSI_Random_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"RSI Indicator", ~"Difference",
+  "NANO", as.numeric(Returns_NANO), as.numeric(Returns_Opt_RSI_NANO), as.numeric(NANO_Diff_Opt_RSI),
+  "PEZ", as.numeric(Returns_PEZ), as.numeric(Returns_Opt_RSI_PEZ), as.numeric(PEZ_Diff_Opt_RSI),
+  "FE", as.numeric(Returns_FE), as.numeric(Returns_Opt_RSI_FE), as.numeric(FE_Diff_Opt_RSI),
+  "TFX", as.numeric(Returns_TFX), as.numeric(Returns_Opt_RSI_TFX), as.numeric(TFX_Diff_Opt_RSI),
+  "EPM", as.numeric(Returns_EPM), as.numeric(Returns_Opt_RSI_EPM), as.numeric(EPM_Diff_Opt_RSI),
+  "LKFN", as.numeric(Returns_LKFN), as.numeric(Returns_Opt_RSI_LKFN), as.numeric(LKFN_Diff_Opt_RSI),
+  "LEA", as.numeric(Returns_LEA), as.numeric(Returns_Opt_RSI_LEA), as.numeric(LEA_Diff_Opt_RSI),
+  "LOPE", as.numeric(Returns_LOPE), as.numeric(Returns_Opt_RSI_LOPE), as.numeric(LOPE_Diff_Opt_RSI),
+  "IMAX", as.numeric(Returns_IMAX), as.numeric(Returns_Opt_RSI_IMAX), as.numeric(IMAX_Diff_Opt_RSI),
+  "ATHN", as.numeric(Returns_ATHN), as.numeric(Returns_Opt_RSI_ATHN), as.numeric(ATHN_Diff_Opt_RSI)
+)
+
+Results_Opt_RSI_Random_Difference <- Results_Opt_RSI_Random_Difference %>% 
+  arrange(Difference)
+
+rownames(Results_Opt_RSI_Random) <- c("NANO", "PEZ", "FE", "TFX", "EPM", "LKFN", "LEA", "LOPE", "IMAX", "ATHN")
+```
+
+```{r}
+library(reshape2)
+RSILong_Random_Opt <- melt(Results_Opt_RSI_Random)
+```
+
+```{r}
+names(RSILong_Random_Opt)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=RSILong_Random_Opt) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Optimized RSI Parameters (89/37)")
+```
+
+```{r}
+ggplot(data=Results_Opt_RSI_Random_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`), fill = "#228B22") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Optimized RSI Parameters (89/37)")
+```
+
+```{r}
+Mean_Random_RSI_Difference <- (mean(Results_RSI_Random_Difference$`Difference`))
+Mean_Random_Opt_RSI_Difference <- (mean(Results_Opt_RSI_Random_Difference$`Difference`))
+
+Mean_Random_RSI_Difference
+Mean_Random_Opt_RSI_Difference
+```
+
+# Returns of Stocks in Portfolios with Optimized Parameters for STOCH
+
+## Fidelity
+
+```{r}
+STOCHBuyLevel <- 50
+STOCHSellLevel <- 73
+```
+
+```{r}
+Sim_CMCSA_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_CMCSA_STOCH, CMCSA_STOCH, CMCSA_STOCH$SlowD_CMCSA, CMCSA_Price, "close_CMCSA")
+Sim_CVX_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_CVX_STOCH, CVX_STOCH, CVX_STOCH$SlowD_CVX, CVX_Price, "close_CVX")
+Sim_GE_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_GE_STOCH, GE_STOCH, GE_STOCH$SlowD_GE, GE_Price, "close_GE")
+Sim_JNJ_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_JNJ_STOCH, JNJ_STOCH, JNJ_STOCH$SlowD_JNJ, JNJ_Price, "close_JNJ")
+Sim_JPM_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_JPM_STOCH, JPM_STOCH, JPM_STOCH$SlowD_JPM, JPM_Price, "close_JPM")
+Sim_MRK_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_MRK_STOCH, MRK_STOCH, MRK_STOCH$SlowD_MRK, MRK_Price, "close_MRK")
+Sim_PAYX_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_PAYX_STOCH, PAYX_STOCH, PAYX_STOCH$SlowD_PAYX, PAYX_Price, "close_PAYX")
+Sim_PFE_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_PFE_STOCH, PFE_STOCH, PFE_STOCH$SlowD_PFE, PFE_Price, "close_PFE")
+Sim_RDS.A_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_RDS.A_STOCH, RDS.A_STOCH, RDS.A_STOCH$SlowD_RDS.A, RDS.A_Price, "close_RDS.A")
+Sim_WFC_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_WFC_STOCH, WFC_STOCH, WFC_STOCH$SlowD_WFC, WFC_Price, "close_WFC")
+```
+
+```{r}
+Sim_CMCSA_STOCH_Run_Opt <- Run_Model(Sim_CMCSA_STOCH_Blank_Opt, Sim_CMCSA_STOCH_Blank_Opt$close_CMCSA)
+Sim_CVX_STOCH_Run_Opt <- Run_Model(Sim_CVX_STOCH_Blank_Opt, Sim_CVX_STOCH_Blank_Opt$close_CVX)
+Sim_GE_STOCH_Run_Opt <- Run_Model(Sim_GE_STOCH_Blank_Opt, Sim_GE_STOCH_Blank_Opt$close_GE)
+Sim_JNJ_STOCH_Run_Opt <- Run_Model(Sim_JNJ_STOCH_Blank_Opt, Sim_JNJ_STOCH_Blank_Opt$close_JNJ)
+Sim_JPM_STOCH_Run_Opt <- Run_Model(Sim_JPM_STOCH_Blank_Opt, Sim_JPM_STOCH_Blank_Opt$close_JPM)
+Sim_MRK_STOCH_Run_Opt <- Run_Model(Sim_MRK_STOCH_Blank_Opt, Sim_MRK_STOCH_Blank_Opt$close_MRK)
+Sim_PAYX_STOCH_Run_Opt <- Run_Model(Sim_PAYX_STOCH_Blank_Opt, Sim_PAYX_STOCH_Blank_Opt$close_PAYX)
+Sim_PFE_STOCH_Run_Opt <- Run_Model(Sim_PFE_STOCH_Blank_Opt, Sim_PFE_STOCH_Blank_Opt$close_PFE)
+Sim_RDS.A_STOCH_Run_Opt <- Run_Model(Sim_RDS.A_STOCH_Blank_Opt, Sim_RDS.A_STOCH_Blank_Opt$close_RDS.A)
+Sim_WFC_STOCH_Run_Opt <- Run_Model(Sim_WFC_STOCH_Blank_Opt, Sim_WFC_STOCH_Blank_Opt$close_WFC)
+```
+
+Calculate Returns for STOCH:
+```{r}
+#CMCSA
+Returns_Opt_STOCH_CMCSA <- (Sim_CMCSA_STOCH_Run_Opt$Capital[length(Sim_CMCSA_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_CMCSA <- (Sim_CMCSA_STOCH_Run_Opt$close_CMCSA[length(Sim_CMCSA_STOCH_Run_Opt$Action)]/Sim_CMCSA_STOCH_Run_Opt$close_CMCSA[1]-1)*100
+#CVX
+Returns_Opt_STOCH_CVX <- (Sim_CVX_STOCH_Run_Opt$Capital[length(Sim_CVX_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_CVX <- (Sim_CVX_STOCH_Run_Opt$close_CVX[length(Sim_CVX_STOCH_Run_Opt$Action)]/Sim_CVX_STOCH_Run_Opt$close_CVX[1]-1)*100
+#GE
+Returns_Opt_STOCH_GE <- (Sim_GE_STOCH_Run_Opt$Capital[length(Sim_GE_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_GE <- (Sim_GE_STOCH_Run_Opt$close_GE[length(Sim_GE_STOCH_Run_Opt$Action)]/Sim_GE_STOCH_Run_Opt$close_GE[1]-1)*100
+#JNJ
+Returns_Opt_STOCH_JNJ <- (Sim_JNJ_STOCH_Run_Opt$Capital[length(Sim_JNJ_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_JNJ <- (Sim_JNJ_STOCH_Run_Opt$close_JNJ[length(Sim_JNJ_STOCH_Run_Opt$Action)]/Sim_JNJ_STOCH_Run_Opt$close_JNJ[1]-1)*100
+#JPM
+Returns_Opt_STOCH_JPM <- (Sim_JPM_STOCH_Run_Opt$Capital[length(Sim_JPM_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_JPM <- (Sim_JPM_STOCH_Run_Opt$close_JPM[length(Sim_JPM_STOCH_Run_Opt$Action)]/Sim_JPM_STOCH_Run_Opt$close_JPM[1]-1)*100
+#MRK
+Returns_Opt_STOCH_MRK <- (Sim_MRK_STOCH_Run_Opt$Capital[length(Sim_MRK_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_MRK <- (Sim_MRK_STOCH_Run_Opt$close_MRK[length(Sim_MRK_STOCH_Run_Opt$Action)]/Sim_MRK_STOCH_Run_Opt$close_MRK[1]-1)*100
+#PAYX
+Returns_Opt_STOCH_PAYX <- (Sim_PAYX_STOCH_Run_Opt$Capital[length(Sim_PAYX_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_PAYX <- (Sim_PAYX_STOCH_Run_Opt$close_PAYX[length(Sim_PAYX_STOCH_Run_Opt$Action)]/Sim_PAYX_STOCH_Run_Opt$close_PAYX[1]-1)*100
+#PFE
+Returns_Opt_STOCH_PFE <- (Sim_PFE_STOCH_Run_Opt$Capital[length(Sim_PFE_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_PFE <- (Sim_PFE_STOCH_Run_Opt$close_PFE[length(Sim_PFE_STOCH_Run_Opt$Action)]/Sim_PFE_STOCH_Run_Opt$close_PFE[1]-1)*100
+#RDS.A
+Returns_Opt_STOCH_RDS.A <- (Sim_RDS.A_STOCH_Run_Opt$Capital[length(Sim_RDS.A_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_RDS.A <- (Sim_RDS.A_STOCH_Run_Opt$close_RDS.A[length(Sim_RDS.A_STOCH_Run_Opt$Action)]/Sim_RDS.A_STOCH_Run_Opt$close_RDS.A[1]-1)*100
+#WFC
+Returns_Opt_STOCH_WFC <- (Sim_WFC_STOCH_Run_Opt$Capital[length(Sim_WFC_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_Opt_WFC <- (Sim_WFC_STOCH_Run_Opt$close_WFC[length(Sim_WFC_STOCH_Run_Opt$Action)]/Sim_WFC_STOCH_Run_Opt$close_WFC[1]-1)*100
+
+#Calculating difference variable for STOCH.
+CMCSA_Diff_Opt_STOCH <- Returns_Opt_STOCH_CMCSA - Returns_Opt_CMCSA
+CVX_Diff_Opt_STOCH <- Returns_Opt_STOCH_CVX - Returns_Opt_CVX
+GE_Diff_Opt_STOCH <- Returns_Opt_STOCH_GE - Returns_Opt_GE
+JNJ_Diff_Opt_STOCH <- Returns_Opt_STOCH_JNJ - Returns_Opt_JNJ
+JPM_Diff_Opt_STOCH <- Returns_Opt_STOCH_JPM - Returns_Opt_JPM
+MRK_Diff_Opt_STOCH <- Returns_Opt_STOCH_MRK - Returns_Opt_MRK
+PAYX_Diff_Opt_STOCH <- Returns_Opt_STOCH_PAYX - Returns_Opt_PAYX
+PFE_Diff_Opt_STOCH <- Returns_Opt_STOCH_PFE - Returns_Opt_PFE
+RDS.A_Diff_Opt_STOCH <- Returns_Opt_STOCH_RDS.A - Returns_Opt_RDS.A
+WFC_Diff_Opt_STOCH <- Returns_Opt_STOCH_WFC - Returns_Opt_WFC
+```
+
+```{r}
+Results_Opt_STOCH_Fidelity <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator",
+  "CMCSA", as.numeric(Returns_Opt_CMCSA), as.numeric(Returns_Opt_STOCH_CMCSA),
+  "CVX", as.numeric(Returns_Opt_CVX), as.numeric(Returns_Opt_STOCH_CVX),
+  "GE", as.numeric(Returns_Opt_GE), as.numeric(Returns_Opt_STOCH_GE),
+  "JNJ", as.numeric(Returns_Opt_JNJ), as.numeric(Returns_Opt_STOCH_JNJ),
+  "JPM", as.numeric(Returns_Opt_JPM), as.numeric(Returns_Opt_STOCH_JPM),
+  "MRK", as.numeric(Returns_Opt_MRK), as.numeric(Returns_Opt_STOCH_MRK),
+  "PAYX", as.numeric(Returns_Opt_PAYX), as.numeric(Returns_Opt_STOCH_PAYX),
+  "PFE", as.numeric(Returns_Opt_PFE), as.numeric(Returns_Opt_STOCH_PFE),
+  "RDS.A", as.numeric(Returns_Opt_RDS.A), as.numeric(Returns_Opt_STOCH_RDS.A),
+  "WFC", as.numeric(Returns_Opt_WFC), as.numeric(Returns_Opt_STOCH_WFC)
+)
+
+Results_Opt_STOCH_Fidelity_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator", ~"Difference",
+  "CMCSA", as.numeric(Returns_Opt_CMCSA), as.numeric(Returns_Opt_STOCH_CMCSA), as.numeric(CMCSA_Diff_Opt_STOCH),
+  "CVX", as.numeric(Returns_Opt_CVX), as.numeric(Returns_Opt_STOCH_CVX), as.numeric(CVX_Diff_Opt_STOCH),
+  "GE", as.numeric(Returns_Opt_GE), as.numeric(Returns_Opt_STOCH_GE), as.numeric(GE_Diff_Opt_STOCH),
+  "JNJ", as.numeric(Returns_Opt_JNJ), as.numeric(Returns_Opt_STOCH_JNJ), as.numeric(JNJ_Diff_Opt_STOCH),
+  "JPM", as.numeric(Returns_Opt_JPM), as.numeric(Returns_Opt_STOCH_JPM), as.numeric(JPM_Diff_Opt_STOCH),
+  "MRK", as.numeric(Returns_Opt_MRK), as.numeric(Returns_Opt_STOCH_MRK), as.numeric(MRK_Diff_Opt_STOCH),
+  "PAYX", as.numeric(Returns_Opt_PAYX), as.numeric(Returns_Opt_STOCH_PAYX), as.numeric(PAYX_Diff_Opt_STOCH),
+  "PFE", as.numeric(Returns_Opt_PFE), as.numeric(Returns_Opt_STOCH_PFE), as.numeric(PFE_Diff_Opt_STOCH),
+  "RDS.A", as.numeric(Returns_Opt_RDS.A), as.numeric(Returns_Opt_STOCH_RDS.A), as.numeric(RDS.A_Diff_Opt_STOCH),
+  "WFC", as.numeric(Returns_Opt_WFC), as.numeric(Returns_Opt_STOCH_WFC), as.numeric(WFC_Diff_Opt_STOCH)
+)
+
+Results_Opt_STOCH_Fidelity_Difference <- Results_Opt_STOCH_Fidelity_Difference %>% 
+  arrange((Difference))
+
+rownames(Results_Opt_STOCH_Fidelity) <- c("CMCSA", "CVX", "GE", "JNJ", "JPM", "MRK", "PAYX", "PFE", "RDS.A", "WFC")
+```
+
+```{r}
+library(reshape2)
+STOCHLong_Fidelity_Opt <- melt(Results_Opt_STOCH_Fidelity)
+```
+
+```{r}
+names(STOCHLong_Fidelity_Opt)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=STOCHLong_Fidelity_Opt) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Optimized STOCH Parameters (73/50)")
+```
+
+```{r}
+ggplot(data=Results_Opt_STOCH_Fidelity_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`), fill = "#FFA500") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Optimized STOCH Parameters (73/50)")
+```
+
+```{r}
+#Mean performance calculations.
+Mean_Fidelity_STOCH_Return <- (mean(Results_STOCH_Fidelity_Difference$`Difference`))
+Mean_Fidelity_Opt_STOCH_Return <- (mean(Results_Opt_STOCH_Fidelity_Difference$`Difference`))
+
+Mean_Fidelity_STOCH_Return
+Mean_Fidelity_Opt_STOCH_Return
+```
+
+## Article
+
+```{r}
+STOCHSellLevel <- 92
+STOCHBuyLevel <- 24
+```
+
+```{r}
+Sim_CSCO_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_CSCO_STOCH, CSCO_STOCH, CSCO_STOCH$SlowD_CSCO, CSCO_Price, "close_CSCO")
+Sim_CVX_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_CVX_STOCH, CVX_STOCH, CVX_STOCH$SlowD_CVX, CVX_Price, "close_CVX")
+Sim_GE_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_GE_STOCH, GE_STOCH, GE_STOCH$SlowD_GE, GE_Price, "close_GE")
+Sim_IBM_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_IBM_STOCH, IBM_STOCH, IBM_STOCH$SlowD_IBM, IBM_Price, "close_IBM")
+Sim_MMM_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_MMM_STOCH, MMM_STOCH, MMM_STOCH$SlowD_MMM, MMM_Price, "close_MMM")
+Sim_MSFT_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_MSFT_STOCH, MSFT_STOCH, MSFT_STOCH$SlowD_MSFT, MSFT_Price, "close_MSFT")
+Sim_TRV_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_TRV_STOCH, TRV_STOCH, TRV_STOCH$SlowD_TRV, TRV_Price, "close_TRV")
+Sim_PFE_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_PFE_STOCH, PFE_STOCH, PFE_STOCH$SlowD_PFE, PFE_Price, "close_PFE")
+Sim_UNH_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_UNH_STOCH, UNH_STOCH, UNH_STOCH$SlowD_UNH, UNH_Price, "close_UNH")
+Sim_UTX_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_UTX_STOCH, UTX_STOCH, UTX_STOCH$SlowD_UTX, UTX_Price, "close_UTX")
+```
+
+```{r}
+Sim_CSCO_STOCH_Run_Opt <- Run_Model(Sim_CSCO_STOCH_Blank_Opt, Sim_CSCO_STOCH_Blank_Opt$close_CSCO)
+Sim_CVX_STOCH_Run_Opt <- Run_Model(Sim_CVX_STOCH_Blank_Opt, Sim_CVX_STOCH_Blank_Opt$close_CVX)
+Sim_GE_STOCH_Run_Opt <- Run_Model(Sim_GE_STOCH_Blank_Opt, Sim_GE_STOCH_Blank_Opt$close_GE)
+Sim_IBM_STOCH_Run_Opt <- Run_Model(Sim_IBM_STOCH_Blank_Opt, Sim_IBM_STOCH_Blank_Opt$close_IBM)
+Sim_MMM_STOCH_Run_Opt <- Run_Model(Sim_MMM_STOCH_Blank_Opt, Sim_MMM_STOCH_Blank_Opt$close_MMM)
+Sim_MSFT_STOCH_Run_Opt <- Run_Model(Sim_MSFT_STOCH_Blank_Opt, Sim_MSFT_STOCH_Blank_Opt$close_MSFT)
+Sim_TRV_STOCH_Run_Opt <- Run_Model(Sim_TRV_STOCH_Blank_Opt, Sim_TRV_STOCH_Blank_Opt$close_TRV)
+Sim_PFE_STOCH_Run_Opt <- Run_Model(Sim_PFE_STOCH_Blank_Opt, Sim_PFE_STOCH_Blank_Opt$close_PFE)
+Sim_UNH_STOCH_Run_Opt <- Run_Model(Sim_UNH_STOCH_Blank_Opt, Sim_UNH_STOCH_Blank_Opt$close_UNH)
+Sim_UTX_STOCH_Run_Opt <- Run_Model(Sim_UTX_STOCH_Blank_Opt, Sim_UTX_STOCH_Blank_Opt$close_UTX)
+```
+
+Calculate Returns for STOCH:
+```{r}
+#CSCO
+Returns_Opt_STOCH_CSCO <- (Sim_CSCO_STOCH_Run_Opt$Capital[length(Sim_CSCO_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_CSCO <- (Sim_CSCO_STOCH_Run_Opt$close_CSCO[length(Sim_CSCO_STOCH_Run_Opt$Action)]/Sim_CSCO_STOCH_Run_Opt$close_CSCO[1]-1)*100
+#CVX
+Returns_Opt_STOCH_CVX <- (Sim_CVX_STOCH_Run_Opt$Capital[length(Sim_CVX_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_CVX <- (Sim_CVX_STOCH_Run_Opt$close_CVX[length(Sim_CVX_STOCH_Run_Opt$Action)]/Sim_CVX_STOCH_Run_Opt$close_CVX[1]-1)*100
+#GE
+Returns_Opt_STOCH_GE <- (Sim_GE_STOCH_Run_Opt$Capital[length(Sim_GE_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_GE <- (Sim_GE_STOCH_Run_Opt$close_GE[length(Sim_GE_STOCH_Run_Opt$Action)]/Sim_GE_STOCH_Run_Opt$close_GE[1]-1)*100
+#IBM
+Returns_Opt_STOCH_IBM <- (Sim_IBM_STOCH_Run_Opt$Capital[length(Sim_IBM_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_IBM <- (Sim_IBM_STOCH_Run_Opt$close_IBM[length(Sim_IBM_STOCH_Run_Opt$Action)]/Sim_IBM_STOCH_Run_Opt$close_IBM[1]-1)*100
+#MMM
+Returns_Opt_STOCH_MMM <- (Sim_MMM_STOCH_Run_Opt$Capital[length(Sim_MMM_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_MMM <- (Sim_MMM_STOCH_Run_Opt$close_MMM[length(Sim_MMM_STOCH_Run_Opt$Action)]/Sim_MMM_STOCH_Run_Opt$close_MMM[1]-1)*100
+#MSFT
+Returns_Opt_STOCH_MSFT <- (Sim_MSFT_STOCH_Run_Opt$Capital[length(Sim_MSFT_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_MSFT <- (Sim_MSFT_STOCH_Run_Opt$close_MSFT[length(Sim_MSFT_STOCH_Run_Opt$Action)]/Sim_MSFT_STOCH_Run_Opt$close_MSFT[1]-1)*100
+#TRV
+Returns_Opt_STOCH_TRV <- (Sim_TRV_STOCH_Run_Opt$Capital[length(Sim_TRV_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_TRV <- (Sim_TRV_STOCH_Run_Opt$close_TRV[length(Sim_TRV_STOCH_Run_Opt$Action)]/Sim_TRV_STOCH_Run_Opt$close_TRV[1]-1)*100
+#PFE
+Returns_Opt_STOCH_PFE <- (Sim_PFE_STOCH_Run_Opt$Capital[length(Sim_PFE_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_PFE <- (Sim_PFE_STOCH_Run_Opt$close_PFE[length(Sim_PFE_STOCH_Run_Opt$Action)]/Sim_PFE_STOCH_Run_Opt$close_PFE[1]-1)*100
+#UNH
+Returns_Opt_STOCH_UNH <- (Sim_UNH_STOCH_Run_Opt$Capital[length(Sim_UNH_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_UNH <- (Sim_UNH_STOCH_Run_Opt$close_UNH[length(Sim_UNH_STOCH_Run_Opt$Action)]/Sim_UNH_STOCH_Run_Opt$close_UNH[1]-1)*100
+#UTX
+Returns_Opt_STOCH_UTX <- (Sim_UTX_STOCH_Run_Opt$Capital[length(Sim_UTX_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_UTX <- (Sim_UTX_STOCH_Run_Opt$close_UTX[length(Sim_UTX_STOCH_Run_Opt$Action)]/Sim_UTX_STOCH_Run_Opt$close_UTX[1]-1)*100
+
+#Calculating difference variable for STOCH.
+CSCO_Diff_Opt_STOCH <- Returns_Opt_STOCH_CSCO - Returns_CSCO
+CVX_Diff_Opt_STOCH <- Returns_Opt_STOCH_CVX - Returns_CVX
+GE_Diff_Opt_STOCH <- Returns_Opt_STOCH_GE - Returns_GE
+IBM_Diff_Opt_STOCH <- Returns_Opt_STOCH_IBM - Returns_IBM
+MMM_Diff_Opt_STOCH <- Returns_Opt_STOCH_MMM - Returns_MMM
+MSFT_Diff_Opt_STOCH <- Returns_Opt_STOCH_MSFT - Returns_MSFT
+TRV_Diff_Opt_STOCH <- Returns_Opt_STOCH_TRV - Returns_TRV
+PFE_Diff_Opt_STOCH <- Returns_Opt_STOCH_PFE - Returns_PFE
+UNH_Diff_Opt_STOCH <- Returns_Opt_STOCH_UNH - Returns_UNH
+UTX_Diff_Opt_STOCH <- Returns_Opt_STOCH_UTX - Returns_UTX
+```
+
+```{r}
+Results_Opt_STOCH_Article <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator",
+  "CSCO", as.numeric(Returns_CSCO), as.numeric(Returns_Opt_STOCH_CSCO),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_Opt_STOCH_CVX),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_Opt_STOCH_GE),
+  "IBM", as.numeric(Returns_IBM), as.numeric(Returns_Opt_STOCH_IBM),
+  "MMM", as.numeric(Returns_MMM), as.numeric(Returns_Opt_STOCH_MMM),
+  "MSFT", as.numeric(Returns_MSFT), as.numeric(Returns_Opt_STOCH_MSFT),
+  "TRV", as.numeric(Returns_TRV), as.numeric(Returns_Opt_STOCH_TRV),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_Opt_STOCH_PFE),
+  "UNH", as.numeric(Returns_UNH), as.numeric(Returns_Opt_STOCH_UNH),
+  "UTX", as.numeric(Returns_UTX), as.numeric(Returns_Opt_STOCH_UTX)
+)
+
+Results_Opt_STOCH_Article_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator", ~"Difference",
+  "CSCO", as.numeric(Returns_CSCO), as.numeric(Returns_Opt_STOCH_CSCO), as.numeric(CSCO_Diff_Opt_STOCH),
+  "CVX", as.numeric(Returns_CVX), as.numeric(Returns_Opt_STOCH_CVX), as.numeric(CVX_Diff_Opt_STOCH),
+  "GE", as.numeric(Returns_GE), as.numeric(Returns_Opt_STOCH_GE), as.numeric(GE_Diff_Opt_STOCH),
+  "IBM", as.numeric(Returns_IBM), as.numeric(Returns_Opt_STOCH_IBM), as.numeric(IBM_Diff_Opt_STOCH),
+  "MMM", as.numeric(Returns_MMM), as.numeric(Returns_Opt_STOCH_MMM), as.numeric(MMM_Diff_Opt_STOCH),
+  "MSFT", as.numeric(Returns_MSFT), as.numeric(Returns_Opt_STOCH_MSFT), as.numeric(MSFT_Diff_Opt_STOCH),
+  "TRV", as.numeric(Returns_TRV), as.numeric(Returns_Opt_STOCH_TRV), as.numeric(TRV_Diff_Opt_STOCH),
+  "PFE", as.numeric(Returns_PFE), as.numeric(Returns_Opt_STOCH_PFE), as.numeric(PFE_Diff_Opt_STOCH),
+  "UNH", as.numeric(Returns_UNH), as.numeric(Returns_Opt_STOCH_UNH), as.numeric(UNH_Diff_Opt_STOCH),
+  "UTX", as.numeric(Returns_UTX), as.numeric(Returns_Opt_STOCH_UTX), as.numeric(UTX_Diff_Opt_STOCH)
+)
+
+Results_Opt_STOCH_Article_Difference <- Results_Opt_STOCH_Article_Difference %>% 
+  arrange((Difference))
+
+rownames(Results_Opt_STOCH_Article) <- c("CSCO", "CVX", "GE", "IBM", "MMM", "MSFT", "TRV", "PFE", "UNH", "UTX")
+```
+
+```{r}
+library(reshape2)
+STOCHLong_Article_Opt <- melt(Results_Opt_STOCH_Article)
+```
+
+```{r}
+names(STOCHLong_Article_Opt)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=STOCHLong_Article_Opt) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Optimized STOCH Parameters (92/24)")
+```
+
+```{r}
+ggplot(data=Results_Opt_STOCH_Article_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`), fill = "#FFA500") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Optimized STOCH Parameters (92/24)")
+```
+
+```{r}
+Mean_Article_STOCH_Return <- (mean(Results_STOCH_Article_Difference$`Difference`))
+Mean_Article_Opt_STOCH_Return <- (mean(Results_Opt_STOCH_Article_Difference$`Difference`))
+
+Mean_Article_STOCH_Return
+Mean_Article_Opt_STOCH_Return
+```
+
+## Random
+
+```{r}
+Sim_NANO_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_NANO_STOCH, NANO_STOCH, NANO_STOCH$SlowD_NANO, NANO_Price, "close_NANO")
+Sim_PEZ_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_PEZ_STOCH, PEZ_STOCH, PEZ_STOCH$SlowD_PEZ, PEZ_Price, "close_PEZ")
+Sim_FE_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_FE_STOCH, FE_STOCH, FE_STOCH$SlowD_FE, FE_Price, "close_FE")
+Sim_TFX_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_TFX_STOCH, TFX_STOCH, TFX_STOCH$SlowD_TFX, TFX_Price, "close_TFX")
+Sim_EPM_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_EPM_STOCH, EPM_STOCH, EPM_STOCH$SlowD_EPM, EPM_Price, "close_EPM")
+Sim_LKFN_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_LKFN_STOCH, LKFN_STOCH, LKFN_STOCH$SlowD_LKFN, LKFN_Price, "close_LKFN")
+Sim_LEA_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_LEA_STOCH, LEA_STOCH, LEA_STOCH$SlowD_LEA, LEA_Price, "close_LEA")
+Sim_LOPE_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_LOPE_STOCH, LOPE_STOCH, LOPE_STOCH$SlowD_LOPE, LOPE_Price, "close_LOPE")
+Sim_IMAX_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_IMAX_STOCH, IMAX_STOCH, IMAX_STOCH$SlowD_IMAX, IMAX_Price, "close_IMAX")
+Sim_ATHN_STOCH_Blank_Opt <- Create_Sim_Dataset_STOCH(Sim_ATHN_STOCH, ATHN_STOCH, ATHN_STOCH$SlowD_ATHN, ATHN_Price, "close_ATHN")
+```
+
+```{r}
+Sim_NANO_STOCH_Run_Opt <- Run_Model(Sim_NANO_STOCH_Blank_Opt, Sim_NANO_STOCH_Blank_Opt$close_NANO)
+Sim_PEZ_STOCH_Run_Opt <- Run_Model(Sim_PEZ_STOCH_Blank_Opt, Sim_PEZ_STOCH_Blank_Opt$close_PEZ)
+Sim_FE_STOCH_Run_Opt <- Run_Model(Sim_FE_STOCH_Blank_Opt, Sim_FE_STOCH_Blank_Opt$close_FE)
+Sim_TFX_STOCH_Run_Opt <- Run_Model(Sim_TFX_STOCH_Blank_Opt, Sim_TFX_STOCH_Blank_Opt$close_TFX)
+Sim_EPM_STOCH_Run_Opt <- Run_Model(Sim_EPM_STOCH_Blank_Opt, Sim_EPM_STOCH_Blank_Opt$close_EPM)
+Sim_LKFN_STOCH_Run_Opt <- Run_Model(Sim_LKFN_STOCH_Blank_Opt, Sim_LKFN_STOCH_Blank_Opt$close_LKFN)
+Sim_LEA_STOCH_Run_Opt <- Run_Model(Sim_LEA_STOCH_Blank_Opt, Sim_LEA_STOCH_Blank_Opt$close_LEA)
+Sim_LOPE_STOCH_Run_Opt <- Run_Model(Sim_LOPE_STOCH_Blank_Opt, Sim_LOPE_STOCH_Blank_Opt$close_LOPE)
+Sim_IMAX_STOCH_Run_Opt <- Run_Model(Sim_IMAX_STOCH_Blank_Opt, Sim_IMAX_STOCH_Blank_Opt$close_IMAX)
+Sim_ATHN_STOCH_Run_Opt <- Run_Model(Sim_ATHN_STOCH_Blank_Opt, Sim_ATHN_STOCH_Blank_Opt$close_ATHN)
+```
+
+Calculate Returns for STOCH:
+```{r}
+#NANO
+Returns_Opt_STOCH_NANO <- (Sim_NANO_STOCH_Run_Opt$Capital[length(Sim_NANO_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_NANO <- (Sim_NANO_STOCH_Run_Opt$close_NANO[length(Sim_NANO_STOCH_Run_Opt$Action)]/Sim_NANO_STOCH_Run_Opt$close_NANO[1]-1)*100
+#PEZ
+Returns_Opt_STOCH_PEZ <- (Sim_PEZ_STOCH_Run_Opt$Capital[length(Sim_PEZ_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_PEZ <- (Sim_PEZ_STOCH_Run_Opt$close_PEZ[length(Sim_PEZ_STOCH_Run_Opt$Action)]/Sim_PEZ_STOCH_Run_Opt$close_PEZ[1]-1)*100
+#FE
+Returns_Opt_STOCH_FE <- (Sim_FE_STOCH_Run_Opt$Capital[length(Sim_FE_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_FE <- (Sim_FE_STOCH_Run_Opt$close_FE[length(Sim_FE_STOCH_Run_Opt$Action)]/Sim_FE_STOCH_Run_Opt$close_FE[1]-1)*100
+#TFX
+Returns_Opt_STOCH_TFX <- (Sim_TFX_STOCH_Run_Opt$Capital[length(Sim_TFX_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_TFX <- (Sim_TFX_STOCH_Run_Opt$close_TFX[length(Sim_TFX_STOCH_Run_Opt$Action)]/Sim_TFX_STOCH_Run_Opt$close_TFX[1]-1)*100
+#EPM
+Returns_Opt_STOCH_EPM <- (Sim_EPM_STOCH_Run_Opt$Capital[length(Sim_EPM_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_EPM <- (Sim_EPM_STOCH_Run_Opt$close_EPM[length(Sim_EPM_STOCH_Run_Opt$Action)]/Sim_EPM_STOCH_Run_Opt$close_EPM[1]-1)*100
+#LKFN
+Returns_Opt_STOCH_LKFN <- (Sim_LKFN_STOCH_Run_Opt$Capital[length(Sim_LKFN_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_LKFN <- (Sim_LKFN_STOCH_Run_Opt$close_LKFN[length(Sim_LKFN_STOCH_Run_Opt$Action)]/Sim_LKFN_STOCH_Run_Opt$close_LKFN[1]-1)*100
+#LEA
+Returns_Opt_STOCH_LEA <- (Sim_LEA_STOCH_Run_Opt$Capital[length(Sim_LEA_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_LEA <- (Sim_LEA_STOCH_Run_Opt$close_LEA[length(Sim_LEA_STOCH_Run_Opt$Action)]/Sim_LEA_STOCH_Run_Opt$close_LEA[1]-1)*100
+#LOPE
+Returns_Opt_STOCH_LOPE <- (Sim_LOPE_STOCH_Run_Opt$Capital[length(Sim_LOPE_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_LOPE <- (Sim_LOPE_STOCH_Run_Opt$close_LOPE[length(Sim_LOPE_STOCH_Run_Opt$Action)]/Sim_LOPE_STOCH_Run_Opt$close_LOPE[1]-1)*100
+#IMAX
+Returns_Opt_STOCH_IMAX <- (Sim_IMAX_STOCH_Run_Opt$Capital[length(Sim_IMAX_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_IMAX <- (Sim_IMAX_STOCH_Run_Opt$close_IMAX[length(Sim_IMAX_STOCH_Run_Opt$Action)]/Sim_IMAX_STOCH_Run_Opt$close_IMAX[1]-1)*100
+#ATHN
+Returns_Opt_STOCH_ATHN <- (Sim_ATHN_STOCH_Run_Opt$Capital[length(Sim_ATHN_STOCH_Run_Opt$Action)]/InitialCapital-1)*100
+Returns_ATHN <- (Sim_ATHN_STOCH_Run_Opt$close_ATHN[length(Sim_ATHN_STOCH_Run_Opt$Action)]/Sim_ATHN_STOCH_Run_Opt$close_ATHN[1]-1)*100
+
+#Calculating difference variable for STOCH.
+NANO_Diff_Opt_STOCH <- Returns_Opt_STOCH_NANO - Returns_NANO
+PEZ_Diff_Opt_STOCH <- Returns_Opt_STOCH_PEZ - Returns_PEZ
+FE_Diff_Opt_STOCH <- Returns_Opt_STOCH_FE - Returns_FE
+TFX_Diff_Opt_STOCH <- Returns_Opt_STOCH_TFX - Returns_TFX
+EPM_Diff_Opt_STOCH <- Returns_Opt_STOCH_EPM - Returns_EPM
+LKFN_Diff_Opt_STOCH <- Returns_Opt_STOCH_LKFN - Returns_LKFN
+LEA_Diff_Opt_STOCH <- Returns_Opt_STOCH_LEA - Returns_LEA
+LOPE_Diff_Opt_STOCH <- Returns_Opt_STOCH_LOPE - Returns_LOPE
+IMAX_Diff_Opt_STOCH <- Returns_Opt_STOCH_IMAX - Returns_IMAX
+ATHN_Diff_Opt_STOCH <- Returns_Opt_STOCH_ATHN - Returns_ATHN
+```
+
+```{r}
+Results_Opt_STOCH_Random <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator",
+  "NANO", as.numeric(Returns_NANO), as.numeric(Returns_Opt_STOCH_NANO),
+  "PEZ", as.numeric(Returns_PEZ), as.numeric(Returns_Opt_STOCH_PEZ),
+  "FE", as.numeric(Returns_FE), as.numeric(Returns_Opt_STOCH_FE),
+  "TFX", as.numeric(Returns_TFX), as.numeric(Returns_Opt_STOCH_TFX),
+  "EPM", as.numeric(Returns_EPM), as.numeric(Returns_Opt_STOCH_EPM),
+  "LKFN", as.numeric(Returns_LKFN), as.numeric(Returns_Opt_STOCH_LKFN),
+  "LEA", as.numeric(Returns_LEA), as.numeric(Returns_Opt_STOCH_LEA),
+  "LOPE", as.numeric(Returns_LOPE), as.numeric(Returns_Opt_STOCH_LOPE),
+  "IMAX", as.numeric(Returns_IMAX), as.numeric(Returns_Opt_STOCH_IMAX),
+  "ATHN", as.numeric(Returns_ATHN), as.numeric(Returns_Opt_STOCH_ATHN)
+)
+
+Results_Opt_STOCH_Random_Difference <- tribble(
+  ~"Stock Ticker", ~"Buy/Hold", ~"STOCH Indicator", ~"Difference",
+  "NANO", as.numeric(Returns_NANO), as.numeric(Returns_Opt_STOCH_NANO), as.numeric(NANO_Diff_Opt_STOCH),
+  "PEZ", as.numeric(Returns_PEZ), as.numeric(Returns_Opt_STOCH_PEZ), as.numeric(PEZ_Diff_Opt_STOCH),
+  "FE", as.numeric(Returns_FE), as.numeric(Returns_Opt_STOCH_FE), as.numeric(FE_Diff_Opt_STOCH),
+  "TFX", as.numeric(Returns_TFX), as.numeric(Returns_Opt_STOCH_TFX), as.numeric(TFX_Diff_Opt_STOCH),
+  "EPM", as.numeric(Returns_EPM), as.numeric(Returns_Opt_STOCH_EPM), as.numeric(EPM_Diff_Opt_STOCH),
+  "LKFN", as.numeric(Returns_LKFN), as.numeric(Returns_Opt_STOCH_LKFN), as.numeric(LKFN_Diff_Opt_STOCH),
+  "LEA", as.numeric(Returns_LEA), as.numeric(Returns_Opt_STOCH_LEA), as.numeric(LEA_Diff_Opt_STOCH),
+  "LOPE", as.numeric(Returns_LOPE), as.numeric(Returns_Opt_STOCH_LOPE), as.numeric(LOPE_Diff_Opt_STOCH),
+  "IMAX", as.numeric(Returns_IMAX), as.numeric(Returns_Opt_STOCH_IMAX), as.numeric(IMAX_Diff_Opt_STOCH),
+  "ATHN", as.numeric(Returns_ATHN), as.numeric(Returns_Opt_STOCH_ATHN), as.numeric(ATHN_Diff_Opt_STOCH)
+)
+
+Results_Opt_STOCH_Random_Difference <- Results_Opt_STOCH_Random_Difference %>% 
+  arrange(Difference)
+
+rownames(Results_Opt_STOCH_Random) <- c("NANO", "PEZ", "FE", "TFX", "EPM", "LKFN", "LEA", "LOPE", "IMAX", "ATHN")
+```
+
+```{r}
+library(reshape2)
+STOCHLong_Random_Opt <- melt(Results_Opt_STOCH_Random)
+```
+
+```{r}
+names(STOCHLong_Random_Opt)[2] <- "Method"
+```
+
+```{r}
+ggplot(data=STOCHLong_Random_Opt) +
+  geom_col(aes(x=`Stock Ticker`, y=value, fill=Method), position = "dodge") +
+  ylab("Performance") +
+  ggtitle("Performance Using Optimized STOCH Parameters (74/55)")
+```
+
+```{r}
+ggplot(data=Results_Opt_STOCH_Random_Difference) +
+  geom_col(aes(x=reorder(`Stock Ticker`, `Difference`), y=`Difference`), fill = "#FFA500") +
+  ylab("Difference") +
+  xlab("Stock Ticker") +
+  ggtitle("Difference Using Optimized STOCH Parameters (74/55)")
+```
+
+```{r}
+Mean_Random_STOCH_Return <- (mean(Results_STOCH_Random_Difference$`Difference`))
+Mean_Random_Opt_STOCH_Return <- (mean(Results_Opt_STOCH_Random_Difference$`Difference`))
+
+Mean_Random_STOCH_Return
+Mean_Random_Opt_STOCH_Return
+```
+
+# Overall Variance Graphs
+
+##RSI/STOCH Performance vs. Variance for Fidelity Portfolio
+
+```{r}
+#Calculating variance for each stock in Fidelity Portfolio.
+var_CMCSA <- var(Sim_CMCSA_RSI_Blank$close_CMCSA)
+var_CVX <- var(Sim_CVX_RSI_Blank$close_CVX)
+var_GE <- var(Sim_GE_RSI_Blank$close_GE)
+var_JNJ <- var(Sim_JNJ_RSI_Blank$close_JNJ)
+var_JPM <- var(Sim_JPM_RSI_Blank$close_JPM)
+var_MRK <- var(Sim_MRK_RSI_Blank$close_MRK)
+var_PAYX <- var(Sim_PAYX_RSI_Blank$close_PAYX)
+var_PFE <- var(Sim_PFE_RSI_Blank$close_PFE)
+var_RDS.A <- var(Sim_RDS.A_RSI_Blank$close_RDS.A)
+var_WFC <- var(Sim_WFC_RSI_Blank$close_WFC)
+```
+
+```{r}
+#Table of variance versus returns for RSI.
+var_RSI_Fidelity <- tribble(
+  ~"Stock Ticker", ~"RSI Returns vs. Hold", ~"Variance",
+"CMCSA", CMCSA_Diff_RSI, var_CMCSA,
+"CVX", CVX_Diff_RSI, var_CVX,
+"GE", GE_Diff_RSI, var_GE,
+"JNJ", JNJ_Diff_RSI, var_JNJ,
+"JPM", JPM_Diff_RSI, var_JPM,
+"MRK", MRK_Diff_RSI, var_MRK,
+"PAYX", PAYX_Diff_RSI, var_PAYX,
+"PFE", PFE_Diff_RSI, var_PFE,
+"RDS.A", RDS.A_Diff_RSI, var_RDS.A,
+"WFC", WFC_Diff_RSI, var_WFC
+)
+
+#Table of variance versus returns STOCH.
+var_STOCH_Fidelity <- tribble(
+  ~"Stock Ticker", ~"STOCH Returns vs. Hold", ~"Variance",
+"CMCSA", CMCSA_Diff_STOCH, var_CMCSA,
+"CVX", CVX_Diff_STOCH, var_CVX,
+"GE", GE_Diff_STOCH, var_GE,
+"JNJ", JNJ_Diff_STOCH, var_JNJ,
+"JPM", JPM_Diff_STOCH, var_JPM,
+"MRK", MRK_Diff_STOCH, var_MRK,
+"PAYX", PAYX_Diff_STOCH, var_PAYX,
+"PFE", PFE_Diff_STOCH, var_PFE,
+"RDS.A", RDS.A_Diff_STOCH, var_RDS.A,
+"WFC", WFC_Diff_STOCH, var_WFC
+)
+```
+
+```{r}
+ggplot(var_RSI_Fidelity) +
+  geom_text(aes(x = `Variance`, y = `RSI Returns vs. Hold`, label = `Stock Ticker`))
+```
+
+```{r}
+ggplot(var_STOCH_Fidelity) +
+  geom_text(aes(x = `Variance`, y = `STOCH Returns vs. Hold`, label = `Stock Ticker`))
+```
+
+##RSI/STOCH Performance vs. Variance for Article Portfolio
+
+```{r}
+#Calculating variance for each stock in Article Portfolio.
+var_CSCO <- var(Sim_CSCO_RSI_Blank$close_CSCO)
+var_CVX <- var(Sim_CVX_RSI_Blank$close_CVX)
+var_GE <- var(Sim_GE_RSI_Blank$close_GE)
+var_IBM <- var(Sim_IBM_RSI_Blank$close_IBM)
+var_MMM <- var(Sim_MMM_RSI_Blank$close_MMM)
+var_MSFT <- var(Sim_MSFT_RSI_Blank$close_MSFT)
+var_TRV <- var(Sim_TRV_RSI_Blank$close_TRV)
+var_PFE <- var(Sim_PFE_RSI_Blank$close_PFE)
+var_UNH <- var(Sim_UNH_RSI_Blank$close_UNH)
+var_UTX <- var(Sim_UTX_RSI_Blank$close_UTX)
+```
+
+```{r}
+#Table of variance versus returns for RSI.
+var_RSI_Article <- tribble(
+  ~"Stock Ticker", ~"RSI Returns vs. Hold", ~"Variance",
+"CSCO", CSCO_Diff_RSI, var_CSCO,
+"CVX", CVX_Diff_RSI, var_CVX,
+"GE", GE_Diff_RSI, var_GE,
+"IBM", IBM_Diff_RSI, var_IBM,
+"MMM", MMM_Diff_RSI, var_MMM,
+"MSFT", MSFT_Diff_RSI, var_MSFT,
+"TRV", TRV_Diff_RSI, var_TRV,
+"PFE", PFE_Diff_RSI, var_PFE,
+"UNH", UNH_Diff_RSI, var_UNH,
+"UTX", UTX_Diff_RSI, var_UTX
+)
+
+#Table of variance versus returns STOCH.
+var_STOCH_Article <- tribble(
+  ~"Stock Ticker", ~"STOCH Returns vs. Hold", ~"Variance",
+"CSCO", CSCO_Diff_STOCH, var_CSCO,
+"CVX", CVX_Diff_STOCH, var_CVX,
+"GE", GE_Diff_STOCH, var_GE,
+"IBM", IBM_Diff_STOCH, var_IBM,
+"MMM", MMM_Diff_STOCH, var_MMM,
+"MSFT", MSFT_Diff_STOCH, var_MSFT,
+"TRV", TRV_Diff_STOCH, var_TRV,
+"PFE", PFE_Diff_STOCH, var_PFE,
+"UNH", UNH_Diff_STOCH, var_UNH,
+"UTX", UTX_Diff_STOCH, var_UTX
+)
+```
+
+```{r}
+ggplot(var_RSI_Article) +
+  geom_text(aes(x = `Variance`, y = `RSI Returns vs. Hold`, label = `Stock Ticker`))
+```
+
+```{r}
+ggplot(var_STOCH_Article) +
+  geom_text(aes(x = `Variance`, y = `STOCH Returns vs. Hold`, label = `Stock Ticker`))
+```
+
+##RSI/STOCH Performance vs. Variance for Random Portfolio
+
+```{r}
+var_NANO <- var(Sim_NANO_RSI_Blank$close_NANO)
+var_PEZ <- var(Sim_PEZ_RSI_Blank$close_PEZ)
+var_FE <- var(Sim_FE_RSI_Blank$close_FE)
+var_TFX <- var(Sim_TFX_RSI_Blank$close_TFX)
+var_EPM <- var(Sim_EPM_RSI_Blank$close_EPM)
+var_LKFN <- var(Sim_LKFN_RSI_Blank$close_LKFN)
+var_LEA <- var(Sim_LEA_RSI_Blank$close_LEA)
+var_LOPE <- var(Sim_LOPE_RSI_Blank$close_LOPE)
+var_IMAX <- var(Sim_IMAX_RSI_Blank$close_IMAX)
+var_ATHN <- var(Sim_ATHN_RSI_Blank$close_ATHN)
+```
+
+```{r}
+#Table of variance versus returns for RSI of Random Portfolio.
+var_RSI_Random <- tribble(
+  ~"Stock Ticker", ~"RSI Returns vs. Hold", ~"Variance",
+"NANO", NANO_Diff_RSI, var_NANO,
+"PEZ", PEZ_Diff_RSI, var_PEZ,
+"FE", FE_Diff_RSI, var_FE,
+"TFX", TFX_Diff_RSI, var_TFX,
+"EPM", EPM_Diff_RSI, var_EPM,
+"LKFN", LKFN_Diff_RSI, var_LKFN,
+"LEA", LEA_Diff_RSI, var_LEA,
+"LOPE", LOPE_Diff_RSI, var_LOPE,
+"IMAX", IMAX_Diff_RSI, var_IMAX,
+"ATHN", ATHN_Diff_RSI, var_ATHN
+)
+
+#Table of variance versus returns STOCH of Random Portfolio.
+var_STOCH_Random <- tribble(
+  ~"Stock Ticker", ~"STOCH Returns vs. Hold", ~"Variance",
+"NANO", NANO_Diff_STOCH, var_NANO,
+"PEZ", PEZ_Diff_STOCH, var_PEZ,
+"FE", FE_Diff_STOCH, var_FE,
+"TFX", TFX_Diff_STOCH, var_TFX,
+"EPM", EPM_Diff_STOCH, var_EPM,
+"LKFN", LKFN_Diff_STOCH, var_LKFN,
+"LEA", LEA_Diff_STOCH, var_LEA,
+"LOPE", LOPE_Diff_STOCH, var_LOPE,
+"IMAX", IMAX_Diff_STOCH, var_IMAX,
+"ATHN", ATHN_Diff_STOCH, var_ATHN
+)
+```
+
+```{r}
+ggplot(var_RSI_Random) +
+  geom_text(aes(x = `Variance`, y = `RSI Returns vs. Hold`, label = `Stock Ticker`))
+```
+
+```{r}
+ggplot(var_STOCH_Random) +
+  geom_text(aes(x = `Variance`, y = `STOCH Returns vs. Hold`, label = `Stock Ticker`))
+```
+
+```{r}
+var_RSI_ALL <- rbind(var_RSI_Fidelity, var_RSI_Article, var_RSI_Random)
+
+ggplot(var_RSI_ALL, aes(x = `Variance`, y = `RSI Returns vs. Hold`, label = `Stock Ticker`)) +
+  geom_text() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Correlation Between Variance and Outperformance in Orig. Params for RSI")
+```
+
+```{r}
+var_STOCH_ALL <- rbind(var_STOCH_Fidelity, var_STOCH_Article, var_STOCH_Random)
+
+ggplot(var_STOCH_ALL, aes(x = `Variance`, y = `STOCH Returns vs. Hold`, label = `Stock Ticker`)) +
+  geom_text() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Correlation Between Variance and Outperformance in Orig. Params for STOCH")
+```
+
+```{r}
+#Table of variance versus returns for optimized RSI parameters.
+var_RSI_Fidelity_Opt <- tribble(
+  ~"Stock Ticker", ~"RSI Returns vs. Hold", ~"Variance",
+"CMCSA", CMCSA_Diff_Opt_RSI, var_CMCSA,
+"CVX", CVX_Diff_Opt_RSI, var_CVX,
+"GE", GE_Diff_Opt_RSI, var_GE,
+"JNJ", JNJ_Diff_Opt_RSI, var_JNJ,
+"JPM", JPM_Diff_Opt_RSI, var_JPM,
+"MRK", MRK_Diff_Opt_RSI, var_MRK,
+"PAYX", PAYX_Diff_Opt_RSI, var_PAYX,
+"PFE", PFE_Diff_Opt_RSI, var_PFE,
+"RDS.A", RDS.A_Diff_Opt_RSI, var_RDS.A,
+"WFC", WFC_Diff_Opt_RSI, var_WFC
+)
+
+#Table of variance versus returns for optimized STOCH parameters.
+var_STOCH_Fidelity_Opt <- tribble(
+  ~"Stock Ticker", ~"STOCH Returns vs. Hold", ~"Variance",
+"CMCSA", CMCSA_Diff_Opt_STOCH, var_CMCSA,
+"CVX", CVX_Diff_Opt_STOCH, var_CVX,
+"GE", GE_Diff_Opt_STOCH, var_GE,
+"JNJ", JNJ_Diff_Opt_STOCH, var_JNJ,
+"JPM", JPM_Diff_Opt_STOCH, var_JPM,
+"MRK", MRK_Diff_Opt_STOCH, var_MRK,
+"PAYX", PAYX_Diff_Opt_STOCH, var_PAYX,
+"PFE", PFE_Diff_Opt_STOCH, var_PFE,
+"RDS.A", RDS.A_Diff_Opt_STOCH, var_RDS.A,
+"WFC", WFC_Diff_Opt_STOCH, var_WFC
+)
+```
+
+```{r}
+#Table of variance versus returns for optimized RSI parameters.
+var_RSI_Article_Opt <- tribble(
+  ~"Stock Ticker", ~"RSI Returns vs. Hold", ~"Variance",
+"CSCO", CSCO_Diff_Opt_RSI, var_CSCO,
+"CVX", CVX_Diff_Opt_RSI, var_CVX,
+"GE", GE_Diff_Opt_RSI, var_GE,
+"IBM", IBM_Diff_Opt_RSI, var_IBM,
+"MMM", MMM_Diff_Opt_RSI, var_MMM,
+"MSFT", MSFT_Diff_Opt_RSI, var_MSFT,
+"TRV", TRV_Diff_Opt_RSI, var_TRV,
+"PFE", PFE_Diff_Opt_RSI, var_PFE,
+"UNH", UNH_Diff_Opt_RSI, var_UNH,
+"UTX", UTX_Diff_Opt_RSI, var_UTX
+)
+
+#Table of variance versus returns for optimized STOCH parameters.
+var_STOCH_Article_Opt <- tribble(
+  ~"Stock Ticker", ~"STOCH Returns vs. Hold", ~"Variance",
+"CSCO", CSCO_Diff_Opt_STOCH, var_CSCO,
+"CVX", CVX_Diff_Opt_STOCH, var_CVX,
+"GE", GE_Diff_Opt_STOCH, var_GE,
+"IBM", IBM_Diff_Opt_STOCH, var_IBM,
+"MMM", MMM_Diff_Opt_STOCH, var_MMM,
+"MSFT", MSFT_Diff_Opt_STOCH, var_MSFT,
+"TRV", TRV_Diff_Opt_STOCH, var_TRV,
+"PFE", PFE_Diff_Opt_STOCH, var_PFE,
+"UNH", UNH_Diff_Opt_STOCH, var_UNH,
+"UTX", UTX_Diff_Opt_STOCH, var_UTX
+)
+```
+
+```{r}
+#Table of variance versus returns for optimized RSI parameters.
+var_RSI_Random_Opt <- tribble(
+  ~"Stock Ticker", ~"RSI Returns vs. Hold", ~"Variance",
+"NANO", NANO_Diff_Opt_RSI, var_NANO,
+"PEZ", PEZ_Diff_Opt_RSI, var_PEZ,
+"FE", FE_Diff_Opt_RSI, var_FE,
+"TFX", TFX_Diff_Opt_RSI, var_TFX,
+"EPM", EPM_Diff_Opt_RSI, var_EPM,
+"LKFN", LKFN_Diff_Opt_RSI, var_LKFN,
+"LEA", LEA_Diff_Opt_RSI, var_LEA,
+"LOPE", LOPE_Diff_Opt_RSI, var_LOPE,
+"IMAX", IMAX_Diff_Opt_RSI, var_IMAX,
+"ATHN", ATHN_Diff_Opt_RSI, var_ATHN
+)
+
+#Table of variance versus returns for optimized STOCH parameters.
+var_STOCH_Random_Opt <- tribble(
+  ~"Stock Ticker", ~"STOCH Returns vs. Hold", ~"Variance",
+"NANO", NANO_Diff_Opt_STOCH, var_NANO,
+"PEZ", PEZ_Diff_Opt_STOCH, var_PEZ,
+"FE", FE_Diff_Opt_STOCH, var_FE,
+"TFX", TFX_Diff_Opt_STOCH, var_TFX,
+"EPM", EPM_Diff_Opt_STOCH, var_EPM,
+"LKFN", LKFN_Diff_Opt_STOCH, var_LKFN,
+"LEA", LEA_Diff_Opt_STOCH, var_LEA,
+"LOPE", LOPE_Diff_Opt_STOCH, var_LOPE,
+"IMAX", IMAX_Diff_Opt_STOCH, var_IMAX,
+"ATHN", ATHN_Diff_Opt_STOCH, var_ATHN
+)
+```
+
+```{r}
+var_RSI_ALL_Opt <- rbind(var_RSI_Fidelity_Opt, var_RSI_Article_Opt, var_RSI_Random_Opt)
+
+ggplot(var_RSI_ALL_Opt, aes(x = `Variance`, y = `RSI Returns vs. Hold`, label = `Stock Ticker`)) +
+  geom_text() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Correlation Between Variance and Outperformance in Opt. Params for RSI")
+```
+
+```{r}
+var_STOCH_ALL_Opt <- rbind(var_STOCH_Fidelity_Opt, var_STOCH_Article_Opt, var_STOCH_Random_Opt)
+
+ggplot(var_STOCH_ALL_Opt, aes(x = `Variance`, y = `STOCH Returns vs. Hold`, label = `Stock Ticker`)) +
+  geom_text() +
+  geom_smooth(method = "lm", se = FALSE) +
+  ggtitle("Correlation Between Variance and Outperformance in Opt. Params for STOCH")
+```
